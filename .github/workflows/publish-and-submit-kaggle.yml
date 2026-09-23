@@ -1,5 +1,11 @@
 name: Publish and submit Kaggle notebook
 on:
+  # Automatically run only when this workflow is first added to main.
+  # Ordinary maintenance edits do not trigger another Kaggle submission.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-and-submit-kaggle.yml'
   workflow_dispatch:
     inputs:
       mode:
@@ -22,6 +28,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   submit:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.added, '.github/workflows/publish-and-submit-kaggle.yml')
     runs-on: ubuntu-latest
     timeout-minutes: 55
     env:
