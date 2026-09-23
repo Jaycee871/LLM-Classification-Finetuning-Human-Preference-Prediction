@@ -144,6 +144,7 @@ def test_gpu_training_flow_persists_reported_metrics(tmp_path, monkeypatch,
     assert persisted["train_rows_after_augmentation"] == 60
     assert (output_dir / "adapter").is_dir()
     assert np.isfinite(persisted["validation_log_loss"])
+    assert np.isfinite(persisted["matched_length_reference_log_loss"])
     if produce_submission:
         output = pd.read_csv(submission)
         assert len(output) == 4
