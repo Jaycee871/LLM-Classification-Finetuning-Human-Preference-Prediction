@@ -12,7 +12,7 @@ Pilot a locally attached **Qwen2.5-0.5B-Instruct** model with a three-class sequ
 4. Ensure `transformers`, `peft`, `accelerate`, `sentencepiece` are available. If absent, prepare dependencies using the Kaggle Dependency Manager **before** submitting with Internet disabled. See `requirements-gpu.txt`. Use Kaggle's CUDA-enabled PyTorch.
 5. Enable GPU; disable Notebook Internet for your submission. Import `notebooks/kaggle_gpu_lora_pilot.ipynb` into Kaggle, attach Inputs, edit `BASE`, then **Run All**.
 
-The GPU Notebook **embeds its own copies** of `src/baseline.py` and `src/finetune_lora.py`, and writes them under `/kaggle/working/src`. It does not clone GitHub or download weights at runtime. The model itself is not included in this repo.
+The GPU Notebook **embeds its own copies** of `src/baseline.py` and `src/finetune_lora.py`, and writes them under `/kaggle/working/src`. It does not clone GitHub or download weights at runtime. The model itself is not included in this repo. **After changing either source module, run `python scripts/sync_gpu_notebook.py` and commit the regenerated Notebook.** CI runs `python scripts/sync_gpu_notebook.py --check` and extracts/compiles both embedded modules, so stale copies cannot silently reach a submission.
 
 ## Pilot hyperparameters
 - Fixed seed 42; 85/15 stratified split before any augmentation; validation remains untouched.
