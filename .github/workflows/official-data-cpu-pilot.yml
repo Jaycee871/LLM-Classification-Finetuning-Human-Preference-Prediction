@@ -1,10 +1,6 @@
 name: Kaggle official-data CPU pilot
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/official-data-cpu-pilot.yml'
 permissions:
   contents: read
 concurrency:
