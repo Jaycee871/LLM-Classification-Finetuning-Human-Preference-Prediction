@@ -22,9 +22,31 @@ def test_notebook_json_and_python_syntax():
                 ast.parse(code, filename=f"{path.name}:cell_{i}")
 
 
-def test_gpu_notebook_embeds_modules_offline():
+def test_gpu_notebook_embeds_current_and_valid_python_modules():
+    # Generated cell must match src/ on every CI run; parse actual literals too.
+    import sys
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from sync_gpu_notebook import generated_source_cell
+
     nb = json.loads(NOTEBOOKS[1].read_text(encoding="utf-8"))
-    code = "\n".join("".join(c["source"]) for c in nb["cells"] if c["cell_type"] == "code")
-    assert "write_text(" in code
-    assert "baseline.py" in code and "finetune_lora.py" in code
-    assert "KAGGLE_API_TOKEN" not in code
+    cell = nb["cells"][2]["source"]
+    assert cell == generated_source_cell(), (
+        "Run python scripts/sync_gpu_notebook.py after editing src/"
+    )
+    tree = ast.parse("".join(cell))
+    captured = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if not isinstance(node.func, ast.Attribute) or node.func.attr != "write_text":
+            continue
+        location = ast.unparse(node.func.value)
+        for filename in ("baseline.py", "finetune_lora.py"):
+            if filename in location:
+                captured[filename] = ast.literal_eval(node.args[0])
+
+    assert set(captured) == {"baseline.py", "finetune_lora.py"}
+    for filename, embedded in captured.items():
+        assert embedded == (ROOT / "src" / filename).read_text(encoding="utf-8")
+        ast.parse(embedded, filename=filename)
+    assert "KAGGLE_API_TOKEN" not in "".join(cell)
