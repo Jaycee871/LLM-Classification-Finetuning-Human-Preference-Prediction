@@ -1,0 +1,25 @@
+{
+  "data_source": "Kaggle llm-classification-finetuning official training file",
+  "date_taipei": "2026-09-24",
+  "workflow_run": 35901558177,
+  "total_rows": 57477,
+  "distinct_exact_prompt_hashes": 51731,
+  "outer_training_rows": 48973,
+  "outer_testing_rows": 8504,
+  "exact_group_overlap": 0,
+  "tuned_c_inner_only": 10,
+  "outer_log_loss_length_only": 1.06521673231385,
+  "outer_log_loss_training_prior": 1.097199084335865,
+  "outer_log_loss_uniform": 1.0986122886681098,
+  "outer_length_minus_prior_bootstrap_95pct": [
+    -0.03802013192758435,
+    -0.025499189821341944
+  ],
+  "split_rule": "GroupShuffleSplit by exact normalized prompt SHA256",
+  "source_note": "Subset of aggregated fields confirmed in successful GitHub Actions logs; full aggregate summary retained in short-lived Actions artifact.",
+  "limits": [
+    "Exact-match grouping, not semantic near-duplicate decontamination",
+    "One outer grouped split; interval resamples rows, not prompt clusters",
+    "Exploratory analysis on training file; not public leaderboard"
+  ]
+}
