@@ -78,3 +78,14 @@ def test_length_notebook_source_matches_authoritative_modules():
     for filename, source in captured.items():
         assert source == (ROOT / "src" / filename).read_text(encoding="utf-8")
         ast.parse(source, filename=filename)
+
+
+def test_kaggle_gpu_preflight_handles_incompatible_optional_torchao_before_peft():
+    nb = json.loads(NOTEBOOKS[1].read_text(encoding="utf-8"))
+    code = "".join(nb["cells"][1]["source"])
+    assert "importlib.metadata.version('torchao')" in code
+    assert "Version(installed_torchao) <= Version('0.16.0')" in code
+    assert "subprocess.run(" in code
+    assert "'-m', 'pip', 'uninstall', '-y', 'torchao'" in code
+    assert code.index("subprocess.run(") < code.index("import transformers, peft")
+    assert "enable_internet" not in code

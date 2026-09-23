@@ -92,3 +92,5 @@ See [docs/EXPERIMENT_PLAN.md](docs/EXPERIMENT_PLAN.md) for evaluation and reprod
 ## Kaggle Qwen2.5 0.5B GPU pilot
 
 The [private Kaggle GPU run workflow](.github/workflows/launch-gpu-pilot.yml) creates `packkwanlow/llm-preference-qwen05b-lora-pilot` on T4 and uses the officially published [QwenLM 0.5B base model](https://www.kaggle.com/models/qwen-lm/qwen2.5/Transformers/0.5b/1). It compares LoRA to a length-only classifier trained on exactly the same 2,000 original rows and evaluated on exactly the same 1,200-row held-out validation subset. Aggregate metrics only are copied back to GitHub. No automatic second competition submission is made.
+
+**GPU environment note (first Kaggle attempt):** Private GPU Notebook v1 mounted successfully and started T4 but PEFT rejected Kaggle's bundled optional torchao 0.10.0 (requires >0.16.0). A guarded [GPU retry](docs/GPU_FIRST_RUN.md) now removes the incompatible optional package **offline**, before PyTorch/PEFT import. No additional competition submission will be made automatically.
