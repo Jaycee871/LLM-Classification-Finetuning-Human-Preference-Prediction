@@ -186,30 +186,40 @@ def train_and_predict(args):
     metrics["swap_probe_mean_abs_difference"] = float(
         np.abs(original_prob - swapped_prob).mean()
     )
-    adapter_dir = output / "adapter"
-    trainer.model.save_pretrained(adapter_dir)
-    tokenizer.save_pretrained(adapter_dir)
+    # Preserve successful validation metrics even if adapter saving or optional
+    # 25K-row Kaggle test inference fails. The JSON is aggregate-only.
+    metrics["pipeline_status"] = "validation_completed"
+    try:
+        adapter_dir = output / "adapter"
+        trainer.model.save_pretrained(adapter_dir)
+        tokenizer.save_pretrained(adapter_dir)
+        metrics["pipeline_status"] = "adapter_saved"
 
-    if args.test:
-        test = pd.read_csv(args.test)
-        if "id" not in test.columns:
-            raise ValueError("Test data require id column")
-        test_frame = normalized_frame(test)
-        test_logits = trainer.predict(PairDataset(test_frame)).predictions
-        if isinstance(test_logits, tuple):
-            test_logits = test_logits[0]
-        probs = softmax(np.asarray(test_logits, dtype=np.float64), axis=-1)
-        submission = pd.DataFrame(probs, columns=TARGETS)
-        submission.insert(0, "id", test["id"])
-        submission_path = Path(args.submission)
-        submission_path.parent.mkdir(parents=True, exist_ok=True)
-        submission.to_csv(submission_path, index=False)
-        metrics["submission_rows"] = int(len(submission))
-        print(f"Submission written to {submission_path}")
-    # Persist after optional test inference so the artifact includes submission_rows.
-    (output / "gpu_pilot_metrics.json").write_text(
-        json.dumps(metrics, indent=2) + "\n", encoding="utf-8"
-    )
+        if args.test:
+            test = pd.read_csv(args.test)
+            if "id" not in test.columns:
+                raise ValueError("Test data require id column")
+            test_frame = normalized_frame(test)
+            test_logits = trainer.predict(PairDataset(test_frame)).predictions
+            if isinstance(test_logits, tuple):
+                test_logits = test_logits[0]
+            probs = softmax(np.asarray(test_logits, dtype=np.float64), axis=-1)
+            submission = pd.DataFrame(probs, columns=TARGETS)
+            submission.insert(0, "id", test["id"])
+            submission_path = Path(args.submission)
+            submission_path.parent.mkdir(parents=True, exist_ok=True)
+            submission.to_csv(submission_path, index=False)
+            metrics["submission_rows"] = int(len(submission))
+            metrics["pipeline_status"] = "submission_completed"
+            print(f"Submission written to {submission_path}")
+    except Exception as exc:
+        metrics["pipeline_status"] = "downstream_failed"
+        metrics["downstream_error_type"] = type(exc).__name__
+        raise
+    finally:
+        (output / "gpu_pilot_metrics.json").write_text(
+            json.dumps(metrics, indent=2) + "\n", encoding="utf-8"
+        )
     print(json.dumps(metrics, indent=2))
     return metrics
 
