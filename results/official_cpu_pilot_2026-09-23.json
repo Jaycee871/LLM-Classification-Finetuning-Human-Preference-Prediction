@@ -1,0 +1,68 @@
+{
+  "dataset": "Kaggle: llm-classification-finetuning",
+  "source_file": "train.csv",
+  "source_file_sha256": "0692154aaf20fc6649090c3f49b6b5dd1e693a765ecb5f0856ae0da5946f5be2",
+  "official_training_rows": 57477,
+  "pilot_rows": 12000,
+  "class_counts_pilot": {
+    "winner_model_a": 4189,
+    "winner_model_b": 4103,
+    "winner_tie": 3708
+  },
+  "validation_rows": 1800,
+  "validation_log_loss_tfidf": 1.174414235098555,
+  "validation_log_loss_uniform": 1.0986122886681096,
+  "validation_log_loss_training_class_prior": 1.097218610053315,
+  "seed": 42,
+  "internal_validation_seed": 42,
+  "split": "15% seeded stratified random rows; NOT grouped by prompt",
+  "validation_limitations": [
+    "Repeated prompts or near duplicates may cross row-random split.",
+    "Pilot truncates text to 2400 characters per field.",
+    "No claim of competition leaderboard performance or causal preference effects.",
+    "Observational response-length audit uses pilot sample, not hidden test data."
+  ],
+  "length_audit": {
+    "observations": 12000,
+    "unit": "Unicode characters (joined conversational turns)",
+    "n_equal_length": 82,
+    "n_unequal_non_tie": 8273,
+    "selected_longer_rate_among_unequal_non_tie": 0.6110238124017889,
+    "selected_longer_95pct_row_bootstrap": [
+      0.6000211531487973,
+      0.6216608243684274
+    ],
+    "by_relative_length": {
+      "a_longer": {
+        "n": 5956,
+        "winner_model_a": 2564,
+        "winner_model_b": 1605,
+        "tie": 1787
+      },
+      "b_longer": {
+        "n": 5962,
+        "winner_model_a": 1613,
+        "winner_model_b": 2491,
+        "tie": 1858
+      },
+      "equal_char_length": {
+        "n": 82,
+        "winner_model_a": 12,
+        "winner_model_b": 7,
+        "tie": 63
+      }
+    },
+    "limits": [
+      "Observational: length is confounded with quality, topic, and model identity.",
+      "The logged choice is not evidence of an individual user's stable preference.",
+      "Character count is not tokenizer token count.",
+      "CI assumes exchangeable rows; correlated prompts can make it too narrow."
+    ]
+  },
+  "environment": {
+    "sklearn_version": "1.9.1",
+    "pandas_version": "2.3.3",
+    "github_commit": "e1800265332720551c237c632d54c64b0f33d101",
+    "run_utc": "2026-09-23T15:46:03.566365+00:00"
+  }
+}
