@@ -31,7 +31,8 @@ jobs:
   submit:
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      startsWith(github.event.head_commit.message, 'Start Kaggle CLI retry v2')
+      (startsWith(github.event.head_commit.message, 'Start Kaggle CLI retry v2') ||
+       startsWith(github.event.head_commit.message, 'Submit existing Kaggle v2'))
     runs-on: ubuntu-latest
     timeout-minutes: 55
     env:
@@ -55,7 +56,7 @@ jobs:
           python -m pip install 'kaggle>=1.7,<3'
           kaggle competitions files "$COMPETITION" -q
       - name: Publish offline CPU Notebook to the existing Kaggle kernel
-        if: github.event_name == 'push' || inputs.mode == 'update_and_submit' || inputs.mode == 'push_and_submit'
+        if: (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'Start Kaggle CLI retry v2')) || inputs.mode == 'update_and_submit' || inputs.mode == 'push_and_submit'
         shell: bash
         run: |
           set -euo pipefail
