@@ -1,0 +1,37 @@
+{
+  "source": "Official Kaggle LLM Classification Finetuning training CSV",
+  "source_file_sha256": "0692154aaf20fc6649090c3f49b6b5dd1e693a765ecb5f0856ae0da5946f5be2",
+  "official_training_rows": 57477,
+  "pilot_rows": 12000,
+  "outer_validation_rows": 1800,
+  "outer_validation_log_loss_length_only": 1.0577829276250785,
+  "outer_validation_log_loss_training_prior": 1.097218610053315,
+  "outer_validation_log_loss_uniform": 1.0986122886681096,
+  "length_minus_prior_log_loss_bootstrap_95pct": [
+    -0.05141051938907377,
+    -0.027097969332753734
+  ],
+  "inner_validation_log_loss_by_c": {
+    "0.01": 1.0609242774330818,
+    "0.1": 1.0571736582570102,
+    "1.0": 1.053093827808358,
+    "10.0": 1.0525188154871221
+  },
+  "selected_c": 10,
+  "outer_seed": 42,
+  "inner_seed": 1337,
+  "pilot_seed": 42,
+  "note": "EXPLORATORY comparison. Outer fold overlaps initial TF-IDF benchmark; do not reuse it indefinitely for model selection. Not a Kaggle submission.",
+  "constraints": [
+    "Row-random splitting; repeated prompts may cross splits.",
+    "Character lengths are not measures of style or warmth.",
+    "Selected C tuned on inner fold only.",
+    "No text features: performance reflects length correlates, not causal effects."
+  ],
+  "environment": {
+    "scikit_learn": "1.9.1",
+    "pandas": "2.3.3",
+    "github_sha": "18f38fef091b3907939b96004a3430bb63194392",
+    "run_utc": "2026-09-23T15:52:34.457296+00:00"
+  }
+}
