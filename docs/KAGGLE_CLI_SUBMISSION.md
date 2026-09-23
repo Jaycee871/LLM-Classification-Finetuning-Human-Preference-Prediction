@@ -3,7 +3,7 @@
 The competition uses Kaggle-hosted Notebook versions, **not** a locally generated CSV uploaded from GitHub. Kaggle's documented command is:
 
 ```bash
-kaggle competitions submit -c llm-classification-finetuning \
+kaggle competitions submit llm-classification-finetuning \
   -f submission.csv \
   -k packkwanlow/llm-preference-length-baseline-2026 \
   -v 1 \
@@ -21,3 +21,12 @@ The workflow automatically runs **once when this new workflow file is first adde
 The Kaggle Notebook uses CPU-only character-length features and `C=10`, selected during our earlier exploratory evaluation. It has **not yet been executed or scored by the competition** at the time this workflow is prepared. Our exploratory held-out validation score does not predict the public leaderboard score.
 
 References: [Kaggle CLI code competition instructions](https://github.com/Kaggle/kaggle-cli/blob/main/docs/tutorials.md); [Kaggle CLI kernel metadata](https://github.com/Kaggle/kaggle-cli/blob/main/docs/kernels_metadata.md).
+
+## Actual Kaggle submission result (2026-09-24, Taipei time)
+
+- [Failed first-run logs](https://github.com/Jaycee871/LLM-Classification-Finetuning-Human-Preference-Prediction/actions/runs/35887420239): Kaggle Notebook **v1** returned `KernelWorkerStatus.ERROR` because the first cell required a hardcoded `/kaggle/input/llm-classification-finetuning/train.csv` path that was not present. A GitHub shell poller also incorrectly expected `status: ERROR` and consequently waited ~44 minutes after the failure. No competition submission occurred from that run.
+- The notebook now discovers the actual competition input root by locating a matched `train.csv` and `test.csv` pair inside Kaggle's input mounts. The existing Notebook was updated to **version 2**.
+- [Successful code-submission run](https://github.com/Jaycee871/LLM-Classification-Finetuning-Human-Preference-Prediction/actions/runs/35893885041): v2 status `KernelWorkerStatus.COMPLETE`; its output lists `submission.csv`; `kaggle competitions submit llm-classification-finetuning -f submission.csv -k packkwanlow/llm-preference-length-baseline-2026 -v 2` exited successfully and reported **9 submissions remaining today**.
+- The official public/private scoring results remain pending/unverified. Do not describe our previously observed 1.057783 *local* validation loss as the Kaggle score.
+
+**Rerun safeguards:** The original workflow recognizes explicit, specially named push commits or a manual workflow dispatch only. Do not rerun an already submitted Notebook version unnecessarily. The Kaggle CLI `kaggle competitions submit` command takes the competition **positionally** in the installed 2.2.4 CLI (not `-c`).
