@@ -2,7 +2,7 @@
 
 Reproducible study of **A/B/tie human preference prediction** on Kaggle's [LLM Classification Finetuning](https://www.kaggle.com/competitions/llm-classification-finetuning) dataset, with a longer-term research direction on response length, presentation-order effects, and conversational style.
 
-**Status:** CPU TF-IDF baseline, synthetic tests, aggregate preference diagnostics, and optional GPU LoRA pilot code are implemented. **The real-data evaluation, GPU run, competition submission and Kaggle API verification have not yet been completed.**
+**Status:** CPU TF-IDF baseline, synthetic tests, aggregate preference diagnostics, and optional GPU LoRA pilot code are implemented. **Kaggle API verification and two official-data CPU pilots are complete. Kaggle Notebook version 2 executed successfully and its first code-competition submission was accepted by the CLI on 2026-09-24 (Taipei time). Public score is not yet confirmed. Actual Qwen GPU training remains pending.**
 
 ## Competition task
 
@@ -62,7 +62,7 @@ Two CPU experiments have now **executed on the official competition dataset** (5
 
 **Caution:** These exploratory results share a row-random outer fold; prompts may repeat across train/validation. Repeated model development against that fold is *not* independent scientific confirmation. Character length does not measure warmth or causally determine preference.
 
-A new [self-contained Kaggle length-only submission Notebook](notebooks/kaggle_length_submission.ipynb) is prepared. On Kaggle, attach the official competition dataset through **Add Input**, keep **Internet Off**, run on CPU, then commit the Notebook to create `/kaggle/working/submission.csv`. **No leaderboard submission or score is claimed.** The Notebook is synchronized against authoritative modules via `python scripts/sync_length_notebook.py`; CI checks for drift.
+A new [self-contained Kaggle length-only submission Notebook](notebooks/kaggle_length_submission.ipynb) is prepared. On Kaggle, attach the official competition dataset through **Add Input**, keep **Internet Off**, run on CPU, then commit the Notebook to create `/kaggle/working/submission.csv`. **Version 2 successfully generated `submission.csv` and was submitted via Kaggle CLI; public leaderboard score remains unverified.** The Notebook is synchronized against authoritative modules via `python scripts/sync_length_notebook.py`; CI checks for drift.
 
 ## Experimental design
 
