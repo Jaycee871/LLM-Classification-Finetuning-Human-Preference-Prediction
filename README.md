@@ -2,7 +2,7 @@
 
 Reproducible study of **A/B/tie human preference prediction** on Kaggle's [LLM Classification Finetuning](https://www.kaggle.com/competitions/llm-classification-finetuning) dataset, with a longer-term research direction on response length, presentation-order effects, and conversational style.
 
-**Status:** CPU TF-IDF baseline, synthetic tests, aggregate preference diagnostics, and optional GPU LoRA pilot code are implemented. **Kaggle API verification and two official-data CPU pilots are complete. Kaggle Notebook version 2 executed successfully and its first code-competition submission was accepted by the CLI on 2026-09-24 (Taipei time). Public score is not yet confirmed. Actual Qwen GPU training remains pending.**
+**Status:** CPU TF-IDF baseline, synthetic tests, aggregate preference diagnostics, and optional GPU LoRA pilot code are implemented. **Kaggle API verification and two official-data CPU pilots are complete. Kaggle Notebook version 2 executed successfully and its first code-competition submission was accepted by the CLI on 2026-09-24 (Taipei time). Public score is not yet confirmed. A private Qwen2.5 0.5B GPU pilot is prepared, with real GPU metrics pending.**
 
 ## Competition task
 
@@ -88,3 +88,7 @@ See [docs/EXPERIMENT_PLAN.md](docs/EXPERIMENT_PLAN.md) for evaluation and reprod
 - `data/`, `artifacts/`: local, ignored experiment inputs and outputs.
 
 **Competition reference:** Chiang et al., *LLM Classification Finetuning*, Kaggle (2024).
+
+## Kaggle Qwen2.5 0.5B GPU pilot
+
+The [private Kaggle GPU run workflow](.github/workflows/launch-gpu-pilot.yml) creates `packkwanlow/llm-preference-qwen05b-lora-pilot` on T4 and uses the officially published [QwenLM 0.5B base model](https://www.kaggle.com/models/qwen-lm/qwen2.5/Transformers/0.5b/1). It compares LoRA to a length-only classifier trained on exactly the same 2,000 original rows and evaluated on exactly the same 1,200-row held-out validation subset. Aggregate metrics only are copied back to GitHub. No automatic second competition submission is made.
