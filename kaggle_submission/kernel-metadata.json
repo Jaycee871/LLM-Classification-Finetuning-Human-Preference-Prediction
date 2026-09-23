@@ -1,0 +1,16 @@
+{
+  "id": "packkwanlow/llm-preference-length-baseline-2026",
+  "title": "LLM Preference Length Baseline 2026",
+  "code_file": "kaggle_length_submission.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": "true",
+  "enable_gpu": "false",
+  "enable_internet": "false",
+  "competition_sources": [
+    "llm-classification-finetuning"
+  ],
+  "dataset_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}

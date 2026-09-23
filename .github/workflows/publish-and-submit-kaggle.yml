@@ -1,0 +1,113 @@
+name: Publish and submit Kaggle notebook
+on:
+  # Automatically run only when this workflow is first added to main.
+  # Ordinary maintenance edits do not trigger another Kaggle submission.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-and-submit-kaggle.yml'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'push_and_submit creates a new notebook; submit_existing uses an already completed version'
+        type: choice
+        options:
+          - push_and_submit
+          - submit_existing
+        default: push_and_submit
+        required: true
+      version:
+        description: 'Exact Kaggle notebook version (1 for the first newly created version)'
+        type: string
+        default: '1'
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: kaggle-cli-submit
+  cancel-in-progress: false
+jobs:
+  submit:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.added, '.github/workflows/publish-and-submit-kaggle.yml')
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN || secrets.KAGGLE_TOKEN }}
+      KERNEL: packkwanlow/llm-preference-length-baseline-2026
+      COMPETITION: llm-classification-finetuning
+      VERSION: ${{ inputs.version || '1' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Kaggle CLI and check token
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$KAGGLE_API_TOKEN" ]]; then
+            echo '::error::KAGGLE_API_TOKEN / KAGGLE_TOKEN is not configured.'
+            exit 1
+          fi
+          python -m pip install 'kaggle>=1.7,<3'
+          kaggle competitions files "$COMPETITION" -q
+      - name: Push the offline CPU notebook to Kaggle
+        if: github.event_name == 'push' || inputs.mode == 'push_and_submit'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # This pipeline targets one specific new, private notebook and version 1.
+          # Refuse to overwrite an existing notebook unintentionally.
+          if [[ "$VERSION" != '1' ]]; then
+            echo '::error::The new-notebook path creates version 1. Select submit_existing for an existing version.'
+            exit 1
+          fi
+          if kaggle kernels status "$KERNEL" >/dev/null 2>&1; then
+            echo '::error::The Kaggle notebook already exists. Choose submit_existing with its completed version.'
+            exit 1
+          fi
+          mkdir -p kaggle_publish
+          cp notebooks/kaggle_length_submission.ipynb kaggle_publish/kaggle_length_submission.ipynb
+          cp kaggle_submission/kernel-metadata.json kaggle_publish/kernel-metadata.json
+          kaggle kernels push -p kaggle_publish
+      - name: Wait for Kaggle notebook version to complete
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Do not submit until the uploaded Notebook has run successfully.
+          # A Kaggle notebook version must produce submission.csv in outputs.
+          for attempt in $(seq 1 65); do
+            status="$(kaggle kernels status "$KERNEL" 2>&1 || true)"
+            echo "Kaggle status (poll $attempt): $status"
+            if echo "$status" | grep -Eiq 'status:[[:space:]]*(complete|completed|success)'; then
+              break
+            fi
+            if echo "$status" | grep -Eiq 'status:[[:space:]]*(error|failed|cancelled|canceled)'; then
+              echo "::error::Kaggle notebook failed. Check the notebook's Kaggle execution logs."
+              exit 1
+            fi
+            if [[ "$attempt" -eq 65 ]]; then
+              echo '::error::Notebook has not finished within the polling window. Use submit_existing when it completes.'
+              exit 1
+            fi
+            sleep 40
+          done
+          kaggle kernels files "$KERNEL" | tee /tmp/kaggle_output_files.txt
+          if ! grep -q 'submission.csv' /tmp/kaggle_output_files.txt; then
+            echo '::error::Kaggle notebook completed but submission.csv was not found in output files.'
+            exit 1
+          fi
+      - name: Submit this Kaggle notebook version to the code competition
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! [[ "$VERSION" =~ ^[1-9][0-9]*$ ]]; then
+            echo '::error::Specify a positive numeric Kaggle notebook version.'
+            exit 1
+          fi
+          kaggle competitions submit -c "$COMPETITION" \
+            -f submission.csv -k "$KERNEL" -v "$VERSION" \
+            -m "Offline length-only baseline, GitHub commit ${GITHUB_SHA:0:12}"
+          echo "Submitted kernel $KERNEL version $VERSION. Check Kaggle's Submissions tab for scoring."
