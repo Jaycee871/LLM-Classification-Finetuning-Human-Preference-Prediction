@@ -1,0 +1,8 @@
+# Use Kaggle's provided CUDA-compatible PyTorch.
+# Install wheels in advance using Kaggle Dependency Manager or a licensed
+# attached wheel dataset. Do not pip install from the internet in scoring runs.
+transformers>=4.47,<4.55
+peft>=0.13,<0.17
+accelerate>=0.34,<2
+sentencepiece>=0.2,<1
+safetensors>=0.4,<1

@@ -1,35 +1,35 @@
-# Experiment plan (v0.1, 2026-09-23)
+# Experiment plan (v0.2, 2026-09-23)
 
-## Research question
-How well can computational models predict A/B/tie choices from matched prompt-and-response pairs? Which associations between response length, order and response style persist under held-out evaluation?
+## Primary competition task
+Predict which response wins for a given prompt with three class probabilities, A, B, or tie. Use multiclass log loss and the exact schema in the official competition rules.
 
-## Data and access
-Use only the Kaggle competition's officially provided `train.csv` and `test.csv` after accepting the rules. Never publish raw competition data or identifiers linked to user text. Note the published CC BY-NC 4.0 license and potentially offensive material.
+## Stage A: Implemented CPU baseline
+- Stratified, fixed-seed 85/15 split with train-only TF-IDF fitting and train-only pair-order reversal. **Identical prompts could appear across splits**; before drawing strong generalization conclusions, add a grouped-by-prompt robustness split.
+- Logistic-regression probabilities and `submission.csv` creation.
+- Offline, self-contained Kaggle CPU Notebook; synthetic tests run in GitHub Actions.
+- **Status:** synthetic CI passed; Kaggle real-data run pending.
 
-## Current baseline (implemented)
-- Random state: 42; stratified 85/15 train/validation split.
-- Parse serialized conversational turns; truncate to 2,400 characters per field for an inexpensive CPU run.
-- TF-IDF (1–2 grams, at most 35K terms) trained on **only the training partition**.
-- Pairwise A-minus-B features, prompt features, symmetric response features, length covariates.
-- Swap A and B with label reversal **only in the training partition** to reduce presentation-side dependence.
-- Logistic regression (3-way), report multiclass log loss on untouched validation.
-- Refit on the full labeled dataset after validation, then export three calibrated-ish probabilities (calibration itself not yet validated) for Kaggle inference.
-- Synthetic tests in public CI; actual competition evaluation pending dataset access and Kaggle execution.
+## Stage B: Implemented preference diagnostics (execution pending)
+- `src/diagnostics.py` calculates character-length strata and longer-answer choice rate, with 1,000 bootstrap replicates.
+- Optional `swap_audit` compares model predictions under response-order inversion; run on an untouched validation partition for interpretable held-out results.
+- These measures do not establish what caused preferences or measure subjective warmth.
 
-## Next experiments (not yet implemented)
-1. Stronger model: transformer sequence classifier; LoRA/QLoRA if hardware permits. Maintain exactly the same validation split; compare log loss, per-class precision/recall, calibration error and runtime.
-2. Paired order-swap diagnostic on held-out samples. Report mean absolute change after mapping A/B probabilities back to original response identities, plus tie consistency.
-3. Length diagnostic: compare bins for relative response length. Treat associations as descriptive because quality, topic and length are confounded.
-4. Annotated warmth/style subset: pre-register style annotation instructions and compare inter-rater agreement if human annotation is used. Do not infer warmth simply from which answer wins.
-5. Replicate across seeds and report uncertainty; save config, deterministic run information, and aggregate tables.
+## Stage C: Optional GPU LoRA pilot (execution pending)
+- `src/finetune_lora.py`: locally attached Qwen2.5-0.5B base, LoRA sequence classification, 4,000 train-only pilot rows, three-class log loss, bounded held-out swap probe.
+- Self-contained offline notebook `notebooks/kaggle_gpu_lora_pilot.ipynb` with source bundled in cells. Requires separately attached base weights, available packages, and GPU.
+- Save adapter and aggregate metrics; do not commit weights or raw data. See `docs/GPU_PILOT.md`.
 
-## Constraints
-The competition is notebook-only with **internet disabled** for final evaluation and a **9-hour CPU/GPU limit**. Any model weights needed in a final submission must be made available as attached Kaggle inputs. The starter Notebook runs a small offline baseline and builds `submission.csv` itself.
+## Stage D: Independent robustness (planned)
+1. Add prompt-grouped split and multi-seed reruns; compare with the original random split to assess near-duplicate leakage.
+2. Run full training only after validating pilot runtime on genuine Kaggle hardware, accounting for the hidden ~25K test rows.
+3. Independently annotate response warmth with a preregistered codebook and agreement checks. Do not equate response length or preference with warmth.
+4. Provide bias, calibration and subgroup analyses with clear limitations; maintain provenance for code, random seeds and data version.
 
-## Progress
-- [x] Create repository and secret storage
-- [x] CPU baseline, local tests, offline Kaggle starter Notebook
-- [ ] Confirm competition rule acceptance / dataset download in Kaggle
-- [ ] Run real data and archive aggregate validation results
-- [ ] Conduct GPU-based LLM fine-tuning
-- [ ] Run independent preference-bias analyses
+## Milestones
+- [x] Repository initialized; synthetic CPU test pipeline passes.
+- [x] Aggregate preference-length and model-order diagnostics implemented.
+- [x] Optional LoRA GPU training and self-contained offline Notebook added.
+- [ ] Verify user's Kaggle Secret via the **manual** GitHub workflow (not run automatically).
+- [ ] Obtain official competition data and report actual validation scores.
+- [ ] Run Kaggle GPU pilot successfully and record model/runtime metrics.
+- [ ] Complete grouped prompt validation and independent style annotation.
