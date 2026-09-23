@@ -1,0 +1,27 @@
+{
+  "experiment": "First successful Qwen2.5-0.5B base LoRA T4 Kaggle pilot",
+  "date_taipei": "2026-09-24",
+  "kaggle_notebook": "packkwanlow/llm-preference-qwen05b-lora-pilot",
+  "successful_version": 2,
+  "verified_workflow_run": 35898823108,
+  "validation_log_loss_qwen_lora": 1.963874524651205,
+  "validation_log_loss_matched_length_only": 1.066152731793071,
+  "validation_rows": 1200,
+  "training_rows_after_swap_augmentation": 4000,
+  "original_training_rows": 2000,
+  "trained_epochs": 1,
+  "max_sequence_length_tokens": 384,
+  "model": "Qwen2.5-0.5B base with three-way sequence classification head and LoRA rank 8",
+  "status": "completed",
+  "pipeline_status": "submission_completed",
+  "preview_test_rows_written": 3,
+  "competition_entry_submitted": false,
+  "limitations": [
+    "This is a different local validation population from the Kaggle public leaderboard.",
+    "Random stratified row split; prompt duplication and near-duplicate leakage have not yet been audited.",
+    "The new classification head receives limited training and may need diagnosis or more training.",
+    "This one-run difference does not establish which architectures are generally superior.",
+    "The preview test file contained 3 rows. Hidden-test execution time is unknown."
+  ],
+  "source_note": "Aggregate values printed in GitHub Actions logs. Other metrics in the retained artifact were not copied into this record."
+}

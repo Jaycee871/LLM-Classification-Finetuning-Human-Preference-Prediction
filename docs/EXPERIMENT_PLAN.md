@@ -33,3 +33,7 @@ Predict which response wins for a given prompt with three class probabilities, A
 - [ ] Obtain official competition data and report actual validation scores.
 - [ ] Run Kaggle GPU pilot successfully and record model/runtime metrics.
 - [ ] Complete grouped prompt validation and independent style annotation.
+
+## Updated 2026-09-24: actual Qwen pilot and revised next step
+
+The Kaggle T4 LoRA pilot completed (version 2). Aggregate same-holdout metrics: Qwen **1.963875**, matched length-only **1.066153**, N=1,200. The three-row preview output was generated but not submitted as another entry. See `docs/FIRST_GPU_RESULTS.md` for verified provenance and failed-version incident. An independent prompt-grouped CPU robustness experiment is prepared to check the length model on all available labeled rows without repeatedly using the original row-random validation split; see `docs/GROUPED_ROBUSTNESS.md`. Prioritise this evaluation before any further GPU training or competition submission.

@@ -1,0 +1,58 @@
+name: Prompt-grouped length robustness
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/grouped-length-robustness.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: kaggle-grouped-cpu-audit
+  cancel-in-progress: false
+jobs:
+  grouped_audit:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.head_commit.message, 'Run first prompt-grouped robustness audit')
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN || secrets.KAGGLE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download official training data into ephemeral runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$KAGGLE_API_TOKEN" || { echo "::error::Kaggle secret missing"; exit 1; }
+          python -m pip install -r requirements.txt 'kaggle>=1.7,<3'
+          mkdir -p data
+          kaggle competitions download llm-classification-finetuning -f train.csv -p data -q
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, is_zipfile
+          target = Path('data/train.csv')
+          if not target.is_file():
+              for archive in Path('data').glob('*.zip'):
+                  if is_zipfile(archive):
+                      with ZipFile(archive) as z:
+                          if 'train.csv' in z.namelist():
+                              z.extract('train.csv', 'data')
+                              break
+          if not target.is_file() or target.stat().st_size == 0:
+              raise SystemExit('Official train.csv unavailable')
+          PY
+      - name: Fit nested-tuned length model on disjoint exact-prompt groups
+        run: python -m scripts.run_grouped_length_robustness --train data/train.csv --out artifacts/grouped_length_robustness
+      - name: Store aggregate-only grouped metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: kaggle-grouped-length-aggregate
+          path: artifacts/grouped_length_robustness/summary.json
+          retention-days: 14
+          if-no-files-found: error
+# Nothing in data/ or generated model files is uploaded.

@@ -88,4 +88,5 @@ def test_kaggle_gpu_preflight_handles_incompatible_optional_torchao_before_peft(
     assert "subprocess.run(" in code
     assert "'-m', 'pip', 'uninstall', '-y', 'torchao'" in code
     assert code.index("subprocess.run(") < code.index("import transformers, peft")
+    assert code.index("subprocess.run(") < code.index("\nimport torch\n")
     assert "enable_internet" not in code
