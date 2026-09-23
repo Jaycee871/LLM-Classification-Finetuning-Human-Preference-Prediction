@@ -42,11 +42,11 @@ def test_gpu_notebook_embeds_current_and_valid_python_modules():
         if not isinstance(node.func, ast.Attribute) or node.func.attr != "write_text":
             continue
         location = ast.unparse(node.func.value)
-        for filename in ("baseline.py", "finetune_lora.py"):
-            if filename in location:
+        for filename in ("baseline.py", "finetune_lora.py", "length_baseline.py"):
+            if f"\x27{filename}\x27" in location:
                 captured[filename] = ast.literal_eval(node.args[0])
 
-    assert set(captured) == {"baseline.py", "finetune_lora.py"}
+    assert set(captured) == {"baseline.py", "finetune_lora.py", "length_baseline.py"}
     for filename, embedded in captured.items():
         assert embedded == (ROOT / "src" / filename).read_text(encoding="utf-8")
         ast.parse(embedded, filename=filename)

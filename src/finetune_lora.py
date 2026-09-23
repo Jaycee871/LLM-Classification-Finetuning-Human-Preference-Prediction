@@ -1,4 +1,4 @@
-"""Optional GPU pilot: fine-tune an offline Qwen2.5-0.5B sequence classifier with LoRA.
+"""GPU pilot: fine-tune an offline Qwen2.5-0.5B base sequence classifier with LoRA.
 
 Only run after attaching legitimately accessible model weights and official Kaggle
 competition data. This is a pilot; no actual GPU experiment is claimed here.
@@ -17,6 +17,7 @@ from sklearn.metrics import log_loss
 from sklearn.model_selection import train_test_split
 
 from src.baseline import TARGETS, flatten_messages, flip_pairs, get_labels, normalized_frame
+from src.length_baseline import fit_length_model, predict_length_model
 
 
 def render_pair(row):
@@ -71,14 +72,26 @@ def train_and_predict(args):
     x_train, x_val, y_train, y_val = train_test_split(
         df, y, test_size=0.15, stratify=y, random_state=args.seed
     )
-    # Cap *training only*. Keep validation untouched for honest pilot comparison.
+    # Select an optional, stratified validation subset *before* any GPU training.
+    # The complete official split remains unmodified in the source data.
+    max_validation_rows = getattr(args, "max_validation_rows", 0)
+    if max_validation_rows and len(x_val) > max_validation_rows:
+        x_val, _, y_val, _ = train_test_split(
+            x_val, y_val, train_size=max_validation_rows,
+            stratify=y_val, random_state=args.seed
+        )
+    # Cap *training only*. Keep validation untouched by augmentation.
     if args.pilot_rows and len(x_train) > args.pilot_rows:
         x_train, _, y_train, _ = train_test_split(
             x_train, y_train, train_size=args.pilot_rows,
             stratify=y_train, random_state=args.seed
         )
+    x_original, y_original = x_train.copy(), y_train.copy()
+    # A fair, matched, same-training-size reference for the GPU pilot.
+    length_reference = fit_length_model(x_original, y_original, c=10.0)
+    length_reference_prob = predict_length_model(length_reference, x_val)
+    matched_length_loss = float(log_loss(y_val, length_reference_prob, labels=[0, 1, 2]))
     if args.swap_train:
-        x_original, y_original = x_train.copy(), y_train.copy()
         x_train = pd.concat(
             [x_original, flip_pairs(x_original)], ignore_index=True
         )
@@ -170,7 +183,9 @@ def train_and_predict(args):
         "seed": args.seed,
         "max_length_tokens": args.max_length,
         "base_model_dir": model_dir.name,
-        "training_type": "Qwen2.5-0.5B sequence classification head + LoRA",
+        "training_type": "Qwen2.5-0.5B base sequence classification head + LoRA",
+        "matched_length_reference_log_loss": matched_length_loss,
+        "reference_note": "Length-only C=10 refit on exactly the GPU pilot original training subset; identical held-out validation rows.",
         "caution": "Preliminary pilot; independent replication and full-data run pending.",
     }
     # Probe original/swap consistency on a bounded held-out subset.
@@ -229,12 +244,14 @@ def parse_args():
     p.add_argument("--train", default="data/train.csv")
     p.add_argument("--test", default=None)
     p.add_argument("--base-model", required=True,
-                   help="Complete *local* Qwen2.5-0.5B-Instruct weights/tokenizer folder")
+                   help="Complete *local* Qwen2.5-0.5B weights/tokenizer folder")
     p.add_argument("--output", default="artifacts/gpu_pilot")
     p.add_argument("--submission", default="submission.csv")
     p.add_argument("--pilot-rows", type=int, default=4000,
                    help="Training cap excluding held-out validation; 0 uses all train rows")
     p.add_argument("--max-length", type=int, default=384)
+    p.add_argument("--max-validation-rows", type=int, default=1200,
+                   help="Stratified subset of held-out validation for pilot runtime; 0 uses all")
     p.add_argument("--epochs", type=float, default=1.0)
     p.add_argument("--batch-size", type=int, default=2)
     p.add_argument("--eval-batch-size", type=int, default=4)

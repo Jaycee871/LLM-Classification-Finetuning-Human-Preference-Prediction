@@ -1,6 +1,6 @@
 # Kaggle GPU pilot: reproducibility and setup
 
-**Implemented, not yet executed on the official dataset or Kaggle GPU.** This experiment is independent of the GitHub API-secret check. Kaggle Notebooks already provide official competition Inputs after joining; never pass a GitHub token into a public Notebook.
+**GPU experiment prepared for real Kaggle execution. Actual GPU performance remains unverified until the run completes.** This experiment is independent of the GitHub API-secret check. Kaggle Notebooks already provide official competition Inputs after joining; never pass a GitHub token into a public Notebook.
 
 ## Goal
 Pilot a locally attached **Qwen2.5-0.5B-Instruct** model with a three-class sequence-classification head and LoRA adapters (`q_proj`, `v_proj`). Report multiclass log loss for an untouched, seeded stratified 15% holdout; probe A/B-swap inconsistency on up to 128 held-out examples.
@@ -37,3 +37,8 @@ python -m src.diagnostics --data data/train.csv --out artifacts/aggregate_diagno
 ```
 
 The aggregate diagnostic reports length-binned A/B/tie counts and a row-level bootstrap CI; it cannot infer causal effects or generalize individual preferences. For **held-out** order-stability analysis, pass a model trained on a non-overlapping partition and run `swap_audit` on the validation partition. Passing a full-data-trained baseline plus `--model` to the CLI only provides a pipeline sanity check.
+
+
+## 2026-09-24 first-run setup
+
+See [the dedicated GPU first-run guide](GPU_FIRST_RUN.md). This pilot uses the officially published [QwenLM 0.5B base Kaggle model](https://www.kaggle.com/models/qwen-lm/qwen2.5/Transformers/0.5b/1) under Apache 2.0. It trains on 2,000 original rows plus A/B reversal and evaluates on a separate 1,200-row held-out validation subset. We also fit a length-only reference on the identical training partition and evaluate the two models on the same held-out rows. The workflow does not automatically submit an additional competition entry.

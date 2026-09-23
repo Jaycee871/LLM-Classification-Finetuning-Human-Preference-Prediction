@@ -1,0 +1,100 @@
+name: Launch Kaggle Qwen05B GPU pilot
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/launch-gpu-pilot.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: kaggle-gpu-pilot
+  cancel-in-progress: false
+jobs:
+  launch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 175
+    env:
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN || secrets.KAGGLE_TOKEN }}
+      KERNEL: packkwanlow/llm-preference-qwen05b-lora-pilot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Preflight Kaggle API and competition access
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$KAGGLE_API_TOKEN" || { echo "::error::Missing Kaggle API secret."; exit 1; }
+          python -m pip install 'kaggle>=1.7,<3'
+          kaggle competitions files llm-classification-finetuning -q
+      - name: Publish offline Qwen 0.5B LoRA Notebook on Kaggle T4
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p kaggle_gpu_publish
+          cp notebooks/kaggle_gpu_lora_pilot.ipynb kaggle_gpu_publish/kaggle_gpu_lora_pilot.ipynb
+          cp kaggle_gpu/kernel-metadata.json kaggle_gpu_publish/kernel-metadata.json
+          kaggle kernels push -p kaggle_gpu_publish --accelerator NvidiaTeslaT4 | tee /tmp/kaggle_gpu_push.log
+          python - <<'PY'
+          import os, re
+          from pathlib import Path
+          result=Path("/tmp/kaggle_gpu_push.log").read_text()
+          match=re.search(r"Kernel version (\d+) successfully pushed", result)
+          if not match: raise SystemExit("Could not determine actual Kaggle GPU version; aborting.")
+          with open(os.environ["GITHUB_ENV"],"a") as handle:handle.write("KAGGLE_GPU_VERSION="+match.group(1)+"\n")
+          print("Published Kaggle GPU kernel version",match.group(1))
+          PY
+      - name: Wait for actual Kaggle GPU execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 160); do
+            status="$(kaggle kernels status "$KERNEL" 2>&1 || true)"
+            echo "GPU run (poll $attempt): $status"
+            if echo "$status" | grep -Eiq 'KernelWorkerStatus[.](ERROR|FAILED|CANCELLED|CANCELED)'; then
+              echo "::error::Kaggle GPU notebook failed. Final log excerpt:"
+              kaggle kernels logs "$KERNEL" 2>/dev/null | tail -c 7000 || true
+              exit 1
+            fi
+            if echo "$status" | grep -Eiq 'KernelWorkerStatus[.](COMPLETE|COMPLETED|SUCCESS)'; then
+              break
+            fi
+            if [[ "$attempt" -eq 160 ]]; then
+              echo "::error::GPU job still running after the polling budget. Inspect private Kaggle notebook before retrying."
+              exit 1
+            fi
+            sleep 55
+          done
+          echo "Completed Kaggle GPU kernel version $KAGGLE_GPU_VERSION."
+          kaggle kernels files "$KERNEL"
+      - name: Download and report aggregate pilot metrics only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p gpu_aggregate
+          kaggle kernels output "$KERNEL" -p gpu_aggregate --file-pattern '.*gpu_pilot_metrics[.]json$' -o
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          files=list(Path("gpu_aggregate").rglob("gpu_pilot_metrics.json"))
+          if not files: raise SystemExit("Aggregate GPU metrics not found in private Kaggle output.")
+          info=json.loads(files[0].read_text())
+          print(json.dumps({
+              "validation_log_loss_qwen_lora":info.get("validation_log_loss"),
+              "matched_length_reference_log_loss":info.get("matched_length_reference_log_loss"),
+              "validation_rows":info.get("validation_rows"),
+              "training_rows_after_augmentation":info.get("train_rows_after_augmentation"),
+              "pipeline_status":info.get("pipeline_status"),
+              "submission_preview_rows":info.get("submission_rows"),
+          },indent=2))
+          PY
+      - name: Upload public-safe aggregate metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: qwen05b-gpu-pilot-aggregate
+          path: gpu_aggregate/**/gpu_pilot_metrics.json
+          if-no-files-found: error
+          retention-days: 14
+# This is a research pilot, not an automatic second competition submission.
