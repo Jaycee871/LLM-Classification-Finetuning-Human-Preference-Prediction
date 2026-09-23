@@ -19,3 +19,11 @@ The [GPU Kaggle pilot GitHub workflow](../.github/workflows/launch-gpu-pilot.yml
 
 ## Why we keep the results separate
 Human preference labels reflect observed comparisons, not absolute quality or causality. The original data can share prompts across row-random splits; a future publication requires prompt-grouped re-evaluation and independent multi-seed testing. Do not infer warmth or subjective states from response lengths.
+
+## Version 1 incident and version 2 repair
+
+The first private Kaggle GPU Notebook ran on T4, successfully mounted official data and Qwen base weights, then failed during `get_peft_model` before LoRA training. The captured traceback was `ImportError: Found an incompatible version of torchao. Found version 0.10.0, but only versions above 0.16.0 are supported`. This is a **Kaggle preinstalled optional torchao versus PEFT** package conflict, not a GPU quota, missing model input, or failed research result.
+
+The version 2 Notebook now checks `importlib.metadata.version("torchao")` *before importing torch or peft*. When the installed torchao is incompatible, it uses `python -m pip uninstall -y torchao` **offline**. We are not using torchao-specific quantization; ordinary fp16 Qwen + LoRA do not require it. The preflight raises a diagnostic if removal fails. This fix is limited to the Kaggle notebook, and model parameters/data splits remain unchanged. Version 2 is a retry of the **same pilot**, not a new competition submission.
+
+[First failed GitHub Actions job](https://github.com/Jaycee871/LLM-Classification-Finetuning-Human-Preference-Prediction/actions/runs/35896761121) records the traceback. The follow-up workflow is guarded so unrelated workflow edits will not consume Kaggle GPU time. A successful *synthetic* CI run does not prove the environment repair until Kaggle T4 actually executes version 2.
