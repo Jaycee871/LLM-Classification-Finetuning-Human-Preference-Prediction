@@ -1,0 +1,24 @@
+{
+  "experiment": "Aggregate-only audit of existing Qwen2.5-0.5B LoRA private Kaggle kernel v2",
+  "date_taipei": "2026-09-24",
+  "workflow_run": 35903590417,
+  "kaggle_kernel": "packkwanlow/llm-preference-qwen05b-lora-pilot",
+  "kaggle_version": 2,
+  "qwen_validation_log_loss": 1.963874524651205,
+  "matched_length_reference_log_loss": 1.066152731793071,
+  "uniform_three_class_log_loss": 1.0986122886681098,
+  "qwen_minus_matched_length_log_loss": 0.897721792858134,
+  "qwen_minus_uniform_log_loss": 0.8652622359830953,
+  "matched_length_minus_uniform_log_loss": -0.032459556875038764,
+  "validation_rows": 1200,
+  "training_rows_after_augmentation": 4000,
+  "swap_probe_mean_absolute_probability_difference": 0.2941593651868554,
+  "pipeline_status": "submission_completed",
+  "no_new_gpu_run": true,
+  "no_new_competition_submission": true,
+  "notes": [
+    "Swap mean absolute probability difference compares predictions on at most 128 held-out samples before and after A/B order reversal, accounting for permutation of class columns.",
+    "High swap instability is an observed symptom but cannot by itself isolate the root cause.",
+    "Aggregate-only prior output does not include per-class confidence and calibration or truncated-token fraction; need validation-only inference on saved adapter."
+  ]
+}
