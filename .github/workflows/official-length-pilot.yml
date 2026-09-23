@@ -1,0 +1,54 @@
+name: Kaggle official-data length pilot
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/official-length-pilot.yml'
+permissions:
+  contents: read
+jobs:
+  length_pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: python -m pip install -r requirements.txt 'kaggle>=1.7,<3'
+      - name: Download official CSV without publishing the data
+        shell: bash
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN || secrets.KAGGLE_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$KAGGLE_API_TOKEN"
+          mkdir -p data
+          kaggle competitions download llm-classification-finetuning -f train.csv -p data -q
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, is_zipfile
+          path = Path('data/train.csv')
+          if not path.is_file():
+              for archive in Path('data').glob('*.zip'):
+                  if is_zipfile(archive):
+                      with ZipFile(archive) as handle:
+                          if 'train.csv' in handle.namelist():
+                              handle.extract('train.csv', 'data')
+                              break
+          if not path.is_file() or path.stat().st_size == 0:
+              raise SystemExit('Missing official train.csv')
+          PY
+      - name: Fit nested-tuned length-only model
+        run: python -m src.length_baseline --train data/train.csv --out artifacts/official_length_pilot --sample-size 12000
+      - name: Upload aggregate metrics only
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-length-pilot-aggregate
+          path: artifacts/official_length_pilot/summary.json
+          retention-days: 14
+          if-no-files-found: error
+# Public artifacts contain no raw competition data or user text.
