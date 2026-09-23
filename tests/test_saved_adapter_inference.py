@@ -7,7 +7,7 @@ import pytest
 
 from src.saved_adapter_inference import (
     aggregate_predictions, exact_pilot_validation, token_truncation_report,
-    character_cap_report,
+    character_cap_report, validated_swap_rows,
 )
 
 
@@ -82,3 +82,11 @@ def test_token_truncation_and_raw_char_caps_are_aggregate_only():
     assert token_report["fraction_rendered_sequence_exceeds_token_limit"] == 1
     assert set(caps) == {"prompt", "response_a", "response_b"}
     assert all(0 <= record["fraction_raw_fields_exceed_cap"] <= 1 for record in caps.values())
+
+
+def test_swap_probe_rejects_empty_input():
+    assert validated_swap_rows(128, 100) == 100
+    assert validated_swap_rows(128, 200) == 128
+    for requested, available in [(0, 10), (-1, 10), (10, 0)]:
+        with pytest.raises(ValueError, match="must be positive"):
+            validated_swap_rows(requested, available)
