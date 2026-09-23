@@ -90,7 +90,7 @@ def install_fake_gpu_stack(monkeypatch):
         monkeypatch.setitem(sys.modules, key, module)
 
 
-@pytest.mark.parametrize("produce_submission", [False, True])
+@pytest.mark.parametrize("produce_submission", [False, True, "invalid"])
 def test_gpu_training_flow_persists_reported_metrics(tmp_path, monkeypatch,
                                                      produce_submission):
     install_fake_gpu_stack(monkeypatch)
@@ -98,9 +98,10 @@ def test_gpu_training_flow_persists_reported_metrics(tmp_path, monkeypatch,
     train_csv = tmp_path / "train.csv"
     raw.to_csv(train_csv, index=False)
     test_csv = tmp_path / "test.csv"
-    raw[["id", "prompt", "response_a", "response_b"]].iloc[:4].to_csv(
-        test_csv, index=False
-    )
+    cols = ["id", "prompt", "response_a", "response_b"]
+    if produce_submission == "invalid":
+        cols.remove("id")
+    raw[cols].iloc[:4].to_csv(test_csv, index=False)
     model_dir = tmp_path / "offline_model"
     model_dir.mkdir()
     (model_dir / "config.json").write_text("{}", encoding="utf-8")
@@ -122,6 +123,18 @@ def test_gpu_training_flow_persists_reported_metrics(tmp_path, monkeypatch,
         seed=42,
         swap_train=True,
     )
+    if produce_submission == "invalid":
+        with pytest.raises(ValueError, match="Test data require id column"):
+            train_and_predict(args)
+        partial = json.loads(
+            (output_dir / "gpu_pilot_metrics.json").read_text(encoding="utf-8")
+        )
+        assert np.isfinite(partial["validation_log_loss"])
+        assert partial["pipeline_status"] == "downstream_failed"
+        assert partial["downstream_error_type"] == "ValueError"
+        assert "submission_rows" not in partial
+        return
+
     reported = train_and_predict(args)
     persisted = json.loads(
         (output_dir / "gpu_pilot_metrics.json").read_text(encoding="utf-8")
@@ -135,7 +148,9 @@ def test_gpu_training_flow_persists_reported_metrics(tmp_path, monkeypatch,
         output = pd.read_csv(submission)
         assert len(output) == 4
         assert reported["submission_rows"] == 4
+        assert reported["pipeline_status"] == "submission_completed"
         assert np.allclose(output.iloc[:, 1:].sum(axis=1), 1)
     else:
         assert not submission.exists()
         assert "submission_rows" not in reported
+        assert reported["pipeline_status"] == "adapter_saved"
