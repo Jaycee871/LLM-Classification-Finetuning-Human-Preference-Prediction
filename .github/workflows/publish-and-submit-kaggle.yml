@@ -1,6 +1,6 @@
 name: Publish and submit Kaggle notebook
 on:
-  # Automatically run only when this workflow is first added to main.
+  # A separately named one-time trigger commit launches the first run.
   # Ordinary maintenance edits do not trigger another Kaggle submission.
   push:
     branches: [main]
@@ -30,7 +30,7 @@ jobs:
   submit:
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      contains(github.event.head_commit.added, '.github/workflows/publish-and-submit-kaggle.yml')
+      startsWith(github.event.head_commit.message, 'Start Kaggle CLI submission job')
     runs-on: ubuntu-latest
     timeout-minutes: 55
     env:
