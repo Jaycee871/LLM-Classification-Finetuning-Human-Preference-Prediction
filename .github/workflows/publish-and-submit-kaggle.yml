@@ -81,12 +81,14 @@ jobs:
           for attempt in $(seq 1 65); do
             status="$(kaggle kernels status "$KERNEL" 2>&1 || true)"
             echo "Kaggle status (poll $attempt): $status"
-            if echo "$status" | grep -Eiq 'status:[[:space:]]*(complete|completed|success)'; then
-              break
-            fi
-            if echo "$status" | grep -Eiq 'status:[[:space:]]*(error|failed|cancelled|canceled)'; then
-              echo "::error::Kaggle notebook failed. Check the notebook's Kaggle execution logs."
+            # Current CLI reports "has status \"KernelWorkerStatus.ERROR\"",
+            # not "status: ERROR". Match actual CLI enums and fail fast.
+            if echo "$status" | grep -Eiq 'KernelWorkerStatus\\.(ERROR|FAILED|CANCELED|CANCELLED)'; then
+              echo "::error::Kaggle notebook reported a terminal failure. Inspect Kaggle execution logs before retrying."
               exit 1
+            fi
+            if echo "$status" | grep -Eiq 'KernelWorkerStatus\\.(COMPLETE|COMPLETED|SUCCESS)'; then
+              break
             fi
             if [[ "$attempt" -eq 65 ]]; then
               echo '::error::Notebook has not finished within the polling window. Use submit_existing when it completes.'
