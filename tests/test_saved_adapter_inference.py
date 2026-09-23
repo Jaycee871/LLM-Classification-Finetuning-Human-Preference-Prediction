@@ -74,7 +74,7 @@ class StubTokenizer:
 
 
 def test_token_truncation_and_raw_char_caps_are_aggregate_only():
-    frame = fake_labeled_frame(n_each=2)
+    frame = fake_labeled_frame(n_each=12)
     val, _ = exact_pilot_validation(frame, max_validation_rows=0)
     token_report = token_truncation_report(StubTokenizer(), val, max_length=2)
     caps = character_cap_report(frame)
