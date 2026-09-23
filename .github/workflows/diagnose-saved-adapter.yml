@@ -1,0 +1,114 @@
+name: Diagnose saved Qwen adapter via inference only
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-saved-adapter.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: kaggle-qwen-saved-adapter-diagnosis
+  cancel-in-progress: false
+jobs:
+  diagnose:
+    # Do not consume GPU on ordinary maintenance commits.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.head_commit.message, 'Run saved Qwen adapter diagnostics')
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN || secrets.KAGGLE_TOKEN }}
+      KERNEL: packkwanlow/qwen-saved-adapter-diagnostics
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check Kaggle access
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$KAGGLE_API_TOKEN" || { echo "::error::Missing Kaggle API secret"; exit 1; }
+          python -m pip install 'kaggle>=1.7,<3'
+          kaggle competitions files llm-classification-finetuning -q
+      - name: Publish PRIVATE existing-adapter diagnostic Notebook
+        shell: bash
+        run: |
+          set -euo pipefail
+          if kaggle kernels status "$KERNEL" >/dev/null 2>&1; then
+            echo '::error::Diagnostic kernel already exists. Do not overwrite an existing run automatically.'
+            exit 1
+          fi
+          mkdir -p private_diagnosis
+          cp notebooks/diagnose_saved_qwen_adapter.ipynb private_diagnosis/diagnose_saved_qwen_adapter.ipynb
+          cp kaggle_diagnostics/kernel-metadata.json private_diagnosis/kernel-metadata.json
+          kaggle kernels push -p private_diagnosis --accelerator NvidiaTeslaT4 | tee /tmp/qwen_diagnostic_push.log
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          txt=Path('/tmp/qwen_diagnostic_push.log').read_text()
+          matched=re.search(r'Kernel version (\d+) successfully pushed',txt)
+          if not matched:
+              raise SystemExit('Cannot confirm diagnostic kernel version from Kaggle push response')
+          print('Private diagnostic Notebook published as version',matched.group(1))
+          PY
+      - name: Wait for validation-only inference (never trains or submits)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for poll in $(seq 1 108); do
+            status="$(kaggle kernels status "$KERNEL" 2>&1 || true)"
+            echo "Diagnostic status ($poll): $status"
+            if echo "$status" | grep -Eiq 'KernelWorkerStatus[.](ERROR|FAILED|CANCELLED|CANCELED)'; then
+              echo "::error::Kaggle inference-only diagnostic failed. Inspect the PRIVATE Kaggle Notebook error output; logs may contain dataset paths."
+              exit 1
+            fi
+            if echo "$status" | grep -Eiq 'KernelWorkerStatus[.](COMPLETE|COMPLETED|SUCCESS)'; then
+              break
+            fi
+            if [[ "$poll" -eq 108 ]]; then
+              echo '::error::Kaggle diagnostic still running at the polling limit; do not start a duplicate job.'
+              exit 1
+            fi
+            sleep 40
+          done
+          kaggle kernels files "$KERNEL" --page-size 100
+      - name: Download ONLY aggregate-only inference metrics
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p aggregate_only
+          kaggle kernels output "$KERNEL" -p aggregate_only \
+            --file-pattern '.*qwen_adapter_diagnostics[.]json$' -o
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          found=list(Path('aggregate_only').rglob('qwen_adapter_diagnostics.json'))
+          if len(found)!=1:
+              raise SystemExit('Expected one aggregate diagnostic JSON artifact')
+          metrics=json.loads(found[0].read_text())
+          if metrics.get('n')!=1200 or metrics.get('model_check',{}).get('no_new_training') is not True:
+              raise SystemExit('Unexpected diagnostic provenance; refusing to publish')
+          print(json.dumps({
+              'validation_rows':metrics['n'],
+              'log_loss':metrics['multiclass_log_loss'],
+              'predicted_counts':metrics['predicted_counts'],
+              'mean_confidence':metrics['mean_max_probability'],
+              'swap_mean_absolute_disagreement':
+                  metrics['swap_diagnostic']['mean_absolute_probability_disagreement'],
+              'fraction_rendered_sequence_exceeds_token_limit':
+                  metrics['rendered_token_truncation']['fraction_rendered_sequence_exceeds_token_limit'],
+              'previous_run_log_loss_difference':
+                  metrics.get('reproducibility',{}).get('difference_in_log_loss')
+          },indent=2))
+          PY
+      - name: Retain only aggregate diagnostic artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qwen-saved-adapter-diagnostics-aggregate-only
+          path: aggregate_only/**/qwen_adapter_diagnostics.json
+          retention-days: 14
+          if-no-files-found: error
+# No Kaggle competition submission; no new training, raw records or model artifacts uploaded.
