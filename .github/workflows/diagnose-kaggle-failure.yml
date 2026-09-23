@@ -1,0 +1,66 @@
+name: Diagnose Kaggle notebook failure
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-kaggle-failure.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN || secrets.KAGGLE_TOKEN }}
+      KERNEL: packkwanlow/llm-preference-length-baseline-2026
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Inspect Kaggle execution errors, no submission
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$KAGGLE_API_TOKEN" || { echo "::error::Missing Kaggle secret"; exit 1; }
+          python -m pip install 'kaggle>=1.7,<3'
+          echo "=== Kernel status ==="
+          kaggle kernels status "$KERNEL"
+          echo "=== Kernel log attempt ==="
+          kaggle kernels logs "$KERNEL" > /tmp/kaggle_logs.txt 2>&1 || true
+          echo "=== Download diagnostic output (no raw competition dataset) ==="
+          mkdir -p /tmp/kaggle_diagnostic
+          kaggle kernels output "$KERNEL" -p /tmp/kaggle_diagnostic --file-pattern '.*(log|html|ipynb).*' -o > /tmp/kaggle_download.txt 2>&1 || true
+          python - <<'PY'
+          import json, re
+          from pathlib import Path
+          logs=Path('/tmp/kaggle_logs.txt').read_text(encoding='utf-8',errors='replace')
+          print('=== CLI kernel logs excerpt (up to 75 lines) ===')
+          print('\n'.join(logs.splitlines()[-75:])[-9000:])
+          print('=== CLI output download summary ===')
+          text=Path('/tmp/kaggle_download.txt').read_text(encoding='utf-8',errors='replace')
+          print(text[-2000:])
+          root=Path('/tmp/kaggle_diagnostic')
+          files=list(root.rglob('*'))
+          print('Downloaded diagnostic filenames:', [f.name for f in files if f.is_file()])
+          for f in files:
+              if not f.is_file() or f.stat().st_size>20_000_000: continue
+              if f.suffix == '.ipynb':
+                  try:
+                      nb=json.loads(f.read_text(encoding='utf-8', errors='replace'))
+                      for i,cell in enumerate(nb.get('cells',[])):
+                          for output in cell.get('outputs',[]):
+                              if output.get('output_type')=='error':
+                                  print(f'ERROR in notebook cell {i}:',output.get('ename'),output.get('evalue'))
+                                  print('\n'.join(output.get('traceback',[]))[-6000:])
+                  except Exception as exc:
+                      print('Notebook diagnostic read issue:',type(exc).__name__)
+              elif f.suffix in ('.html','.log','.txt'):
+                  txt=f.read_text(encoding='utf-8',errors='replace')
+                  if f.suffix=='.html': txt=re.sub('<[^>]+>',' ',txt)
+                  lines=txt.splitlines()
+                  matches=[i for i,line in enumerate(lines) if re.search(r'(Traceback|Exception|AssertionError|FileNotFoundError|ValueError|ERROR|No such file|KeyError)',line,re.I)]
+                  for i in matches[-6:]:
+                      print(f'{f.name} diagnostic excerpt:', '\n'.join(lines[max(i-2,0):i+3])[:1100])
+          PY
