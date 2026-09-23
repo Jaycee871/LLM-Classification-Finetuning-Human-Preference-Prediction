@@ -5,7 +5,7 @@ The GitHub Actions workflow `official-data-cpu-pilot.yml` downloads the official
 
 The run additionally calculates aggregate descriptive associations between response length and selected answer. It saves the SHA-256 fingerprint of the official `train.csv` for reproducibility and uploads only `summary.json` as a GitHub Actions artifact.
 
-**No model checkpoint, Kaggle CSV, conversation excerpts, row IDs, row-level predictions or secret values are uploaded.** The repository is public, so aggregate results may be publicly downloadable. The workflow runs once when first merged to `main` and can later be run with **Actions > Kaggle official-data CPU pilot > Run workflow**.
+**No model checkpoint, Kaggle CSV, conversation excerpts, row IDs, row-level predictions or secret values are uploaded.** The repository is public, so aggregate results may be publicly downloadable. The initial merge-triggered run is complete. To avoid accidental repeat downloads during workflow maintenance, the workflow is now **manual-dispatch only** under **Actions > Kaggle official-data CPU pilot > Run workflow**.
 
 ## Interpretation
 

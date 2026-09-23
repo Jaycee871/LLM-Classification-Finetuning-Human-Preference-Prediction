@@ -8,4 +8,4 @@ Predictors comprise signed log character-length difference between responses, ab
 
 **Important**: Repeated outer-fold comparisons during model development make these exploratory results unsuitable as independent final evidence. Later create new prompt-grouped held-out tests and run replication across seeds.
 
-The GitHub workflow `official-length-pilot.yml` downloads official data to an ephemeral runner; uploads **aggregate metrics JSON only**. It runs once when initially merged to main and may later be retriggered manually. There is no Kaggle leaderboard submission and no GPU training in this workflow.
+The GitHub workflow `official-length-pilot.yml` downloads official data to an ephemeral runner; uploads **aggregate metrics JSON only**. Its first merge-triggered run is complete. The workflow is now **manual-dispatch only** so maintenance commits do not unexpectedly download data. There is no Kaggle leaderboard submission and no GPU training in this workflow.

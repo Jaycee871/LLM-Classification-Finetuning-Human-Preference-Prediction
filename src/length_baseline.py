@@ -5,6 +5,7 @@ It neither measures warmth nor establishes a causal preference for verbosity.
 Only aggregate JSON may be published; official Kaggle data stay local.
 """
 import argparse
+import hashlib
 import json
 import os
 from datetime import datetime, timezone
@@ -18,7 +19,14 @@ from sklearn.metrics import log_loss
 from sklearn.model_selection import train_test_split
 
 from src.baseline import TARGETS, flatten_messages, flip_pairs, get_labels
-from scripts.run_official_cpu_pilot import file_sha256
+
+
+def file_sha256(path):
+    digest = hashlib.sha256()
+    with open(path, 'rb') as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def feature_matrix(df):
@@ -95,6 +103,10 @@ def run_pilot(train_csv, out_dir, sample_size=12000, seed=42):
     else:
         pilot = raw.reset_index(drop=True)
     pilot_y = get_labels(pilot)
+    if np.min(np.bincount(pilot_y, minlength=3)) < 10:
+        raise ValueError(
+            'Sampled pilot must contain at least 10 rows per class for nested splitting'
+        )
     # Exactly the outer split used in the 2026-09-23 TF-IDF benchmark.
     outer_train, outer_val, y_train, y_val = train_test_split(
         pilot, pilot_y, test_size=0.15, random_state=42, stratify=pilot_y

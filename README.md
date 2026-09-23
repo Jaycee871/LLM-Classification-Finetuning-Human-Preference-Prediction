@@ -23,7 +23,7 @@ Run local tests with `python -m pytest -q`. GitHub Actions runs these tests with
 ## Authentication and data safety
 
 - Use Kaggle's current API token via environment variable `KAGGLE_API_TOKEN` or your authenticated CLI. Do **not** share your token in issues, chats, notebooks, source files, or commits.
-- The already-added GitHub repository secret is **not needed** by the local baseline or Kaggle-hosted Notebook. In GitHub Actions, a secret is available only to workflows that explicitly reference its exact name; this project has only an **optional manually triggered** verification workflow that reads the configured secret but does not print it.
+- The already-added GitHub repository secret is **not needed** by the local baseline or Kaggle-hosted Notebook. In GitHub Actions, a secret is available only to workflows that explicitly reference its exact name; the manual verification, official-data CPU and length-only pilot workflows explicitly read the configured secret for authenticated Kaggle requests. These workflows do not print the token, and only authorized GitHub collaborators can dispatch them.
 - `data/*.csv`, checkpoints, `submission.csv` and credentials are gitignored. The competition dataset uses **CC BY-NC 4.0**; do not commit or republish it without checking the license and rules.
 - **This repository is currently public.** Change Settings > General > Danger Zone > Change repository visibility if you intended a private project.
 
@@ -45,9 +45,24 @@ For an **optional GPU** pilot, see [the Kaggle LoRA guide](docs/GPU_PILOT.md) an
 
 ## Next experiment: real-data aggregate CPU pilot
 
-A new [official-data CPU pilot workflow](.github/workflows/official-data-cpu-pilot.yml) downloads `train.csv` from Kaggle into an ephemeral GitHub runner, trains the CPU TF-IDF model on a **seeded, stratified 12,000-row pilot sample**, and uploads **aggregate JSON only** (no raw text, checkpoint or API token). It is set to run once when its workflow file first reaches `main`; future runs are available through **Actions > Kaggle official-data CPU pilot > Run workflow**. A verified API key does **not** guarantee download permissions if competition rules were not accepted. See [setup, limits and failure guide](docs/OFFICIAL_CPU_PILOT.md).
+A new [official-data CPU pilot workflow](.github/workflows/official-data-cpu-pilot.yml) downloads `train.csv` from Kaggle into an ephemeral GitHub runner, trains the CPU TF-IDF model on a **seeded, stratified 12,000-row pilot sample**, and uploads **aggregate JSON only** (no raw text, checkpoint or API token). The initial run has completed successfully; all future experimental runs require an explicit **Actions > Kaggle official-data CPU pilot > Run workflow** dispatch. A verified API key does **not** guarantee download permissions if competition rules were not accepted. See [setup, limits and failure guide](docs/OFFICIAL_CPU_PILOT.md).
 
 The workflow's aggregate validation numbers are a research *pilot*, not Kaggle leaderboard results. Qwen GPU training still requires a separate Kaggle GPU Notebook execution.
+
+## Actual results and competition-ready CPU Notebook
+
+Two CPU experiments have now **executed on the official competition dataset** (57,477 labeled rows, identical 12,000-row exploratory pilot, 1,800 outer-validation rows). See [the first-results discussion](docs/FIRST_RESULTS.md) and the tracked aggregate JSON in [`results/`](results/).
+
+| Exploratory predictor | Held-out multiclass log loss |
+| --- | ---: |
+| Original TF-IDF / pair-swap logistic regression | 1.174414 |
+| Uniform three-class probabilities | 1.098612 |
+| Training-class-prior probabilities | 1.097219 |
+| **Inner-tuned length-only logistic regression** | **1.057783** |
+
+**Caution:** These exploratory results share a row-random outer fold; prompts may repeat across train/validation. Repeated model development against that fold is *not* independent scientific confirmation. Character length does not measure warmth or causally determine preference.
+
+A new [self-contained Kaggle length-only submission Notebook](notebooks/kaggle_length_submission.ipynb) is prepared. On Kaggle, attach the official competition dataset through **Add Input**, keep **Internet Off**, run on CPU, then commit the Notebook to create `/kaggle/working/submission.csv`. **No leaderboard submission or score is claimed.** The Notebook is synchronized against authoritative modules via `python scripts/sync_length_notebook.py`; CI checks for drift.
 
 ## Experimental design
 
@@ -63,8 +78,10 @@ See [docs/EXPERIMENT_PLAN.md](docs/EXPERIMENT_PLAN.md) for evaluation and reprod
 - `src/baseline.py`: reproducible three-class starter model and inference.
 - `src/diagnostics.py`: aggregate response-length and A/B-order stability auditing.
 - `src/finetune_lora.py`: optional GPU LoRA pilot; expects user-attached local model weights.
+- `src/length_baseline.py`: exploratory length-only predictor with inner-fold regularization selection.
 - `notebooks/kaggle_starter.ipynb`: offline Kaggle Notebook submission starter.
 - `notebooks/kaggle_gpu_lora_pilot.ipynb`: offline Kaggle GPU pilot with bundled source.
+- `notebooks/kaggle_length_submission.ipynb`: self-contained offline CPU Kaggle submission starter based on the observed length-only baseline.
 - `scripts/download_competition.sh`: authenticated CLI download (local only).
 - `tests/`: synthetic smoke tests, safe to run in public CI.
 - `docs/`: research protocol and offline GPU pilot setup guide, plus official-data CPU pilot procedure.
