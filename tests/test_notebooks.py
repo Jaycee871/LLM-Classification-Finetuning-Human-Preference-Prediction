@@ -72,7 +72,7 @@ def test_length_notebook_source_matches_authoritative_modules():
             continue
         path = ast.unparse(node.func.value)
         for filename in ("baseline.py", "length_baseline.py"):
-            if filename in path:
+            if f"'{filename}'" in path:
                 captured[filename] = ast.literal_eval(node.args[0])
     assert set(captured) == {"baseline.py", "length_baseline.py"}
     for filename, source in captured.items():
