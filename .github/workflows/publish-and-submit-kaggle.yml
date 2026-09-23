@@ -85,22 +85,8 @@ jobs:
             # not "status: ERROR". Match actual CLI enums and fail fast.
             if echo "$status" | grep -Eiq 'KernelWorkerStatus[.](ERROR|FAILED|CANCELED|CANCELLED)'; then
               echo "::error::Kaggle notebook failed; diagnosing the Kaggle execution traceback."
-              kaggle kernels logs "$KERNEL" >/tmp/kaggle_kernel_log.json 2>/dev/null || true
-              python - <<'PY'
-              import json
-              from pathlib import Path
-              path=Path("/tmp/kaggle_kernel_log.json")
-              if path.exists():
-                  try:
-                      entries=json.loads(path.read_text())
-                      candidates=[x.get("data","") for x in entries if
-                                  any(v in x.get("data","") for v in
-                                      ("Traceback", "AssertionError", "FileNotFoundError", "ValueError",
-                                       "Attached Kaggle input folders:", "Error:"))]
-                      print("Kaggle diagnostic:", "\\n".join(candidates)[-5000:])
-                  except (TypeError,ValueError):
-                      print("Kaggle log excerpt:",path.read_text()[-5000:])
-              PY
+              # Avoid nested YAML shell heredocs; emit a bounded traceback excerpt.
+              kaggle kernels logs "$KERNEL" 2>/dev/null | tail -c 5500 || true
               exit 1
             fi
             if echo "$status" | grep -Eiq 'KernelWorkerStatus[.](COMPLETE|COMPLETED|SUCCESS)'; then
