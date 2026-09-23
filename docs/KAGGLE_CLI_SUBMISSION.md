@@ -16,7 +16,7 @@ To avoid manually using Kaggle's Notebook editor, GitHub has an **on-demand** wo
 
 **Before running:** the existing GitHub `KAGGLE_API_TOKEN` or `KAGGLE_TOKEN` must belong to the Kaggle account `packkwanlow` and have permission to join this competition. If the actual Kaggle username is different, change both the kernel metadata `id` and workflow `KERNEL` before executing. The workflow does not print or commit the secret.
 
-The workflow will **not run on every commit**. The first run is manual; after a successful push, avoid choosing `push_and_submit` again because the Notebook now exists. If Kaggle execution succeeded but the submission failed, choose `submit_existing` and enter that successfully executed Notebook version. Avoid repeated competition submissions unless necessary.
+The workflow automatically runs **once when this new workflow file is first added to `main`**. Future workflow maintenance edits do not trigger another submission; manual reruns are available via **Actions > Publish and submit Kaggle notebook > Run workflow**. After a successful push, avoid choosing `push_and_submit` again because the Notebook now exists. If Kaggle execution succeeded but the submission failed, choose `submit_existing` and enter that successfully executed Notebook version. Avoid repeated competition submissions unless necessary.
 
 The Kaggle Notebook uses CPU-only character-length features and `C=10`, selected during our earlier exploratory evaluation. It has **not yet been executed or scored by the competition** at the time this workflow is prepared. Our exploratory held-out validation score does not predict the public leaderboard score.
 
