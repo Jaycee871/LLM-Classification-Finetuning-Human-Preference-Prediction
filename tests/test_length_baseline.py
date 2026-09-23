@@ -34,3 +34,16 @@ def test_exploratory_nested_validation(tmp_path):
     assert stats["selected_c"] in [0.01,0.1,1.0,10.0]
     assert np.isfinite(stats["outer_validation_log_loss_length_only"])
     assert (tmp_path/"out"/"summary.json").is_file()
+
+
+def test_reject_sampled_pilot_with_insufficient_minority_class(tmp_path):
+    import pytest
+    raw = synthetic_data()
+    a = raw[raw["winner_model_a"] == 1]
+    b = raw[raw["winner_model_b"] == 1]
+    tie = raw[raw["winner_tie"] == 1]
+    skewed = pd.concat([a] * 15 + [b] + [tie], ignore_index=True)
+    path = tmp_path / "skewed.csv"
+    skewed.to_csv(path, index=False)
+    with pytest.raises(ValueError, match="Sampled pilot must contain at least 10"):
+        run_pilot(path, tmp_path / "out", sample_size=100)
