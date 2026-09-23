@@ -34,11 +34,20 @@ def exact_pilot_validation(raw, seed=42, max_validation_rows=1200):
     return val_frame, np.asarray(val_labels, dtype=int)
 
 
+def validated_swap_rows(requested, available):
+    """Reject empty swap probes before touching expensive model inference."""
+    if requested <= 0 or available <= 0:
+        raise ValueError("--swap-rows and available validation rows must be positive")
+    return min(requested, available)
+
+
 def predict_in_batches(model, tokenizer, frame, device, max_length=384, batch_size=8):
     """Use saved adapter in eval/inference mode only; return in-memory probabilities."""
     import torch
     if batch_size <= 0:
         raise ValueError("batch_size must be positive")
+    if len(frame) == 0:
+        raise ValueError("Inference batch frame must not be empty")
     result = []
     model.eval()
     with torch.inference_mode():
@@ -217,6 +226,7 @@ def main(args):
                                          max_validation_rows=args.max_validation_rows)
     # Map back only to these original raw rows for character-cap counts.
     raw_val = raw.loc[x_val.index]
+    n_swap = validated_swap_rows(args.swap_rows, len(x_val))
     tokenizer = AutoTokenizer.from_pretrained(base_dir, local_files_only=True,
                                               trust_remote_code=False)
     if tokenizer.pad_token_id is None:
@@ -229,6 +239,7 @@ def main(args):
         local_files_only=True, trust_remote_code=False
     )
     base.config.pad_token_id = tokenizer.pad_token_id
+    base.config.use_cache = False
     model = PeftModel.from_pretrained(
         base, adapter_dir, is_trainable=False, local_files_only=True
     )
@@ -237,7 +248,6 @@ def main(args):
 
     probs = predict_in_batches(model, tokenizer, x_val, device="cuda:0",
                                max_length=args.max_length, batch_size=args.batch_size)
-    n_swap = min(args.swap_rows, len(x_val))
     swapped = predict_in_batches(
         model, tokenizer, flip_pairs(x_val.iloc[:n_swap]), "cuda:0",
         max_length=args.max_length, batch_size=args.batch_size

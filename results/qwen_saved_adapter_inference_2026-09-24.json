@@ -1,0 +1,185 @@
+{
+  "n": 1200,
+  "multiclass_log_loss": 1.964393494814104,
+  "accuracy": 0.3308333333333333,
+  "multiclass_brier_score": 0.9151691166076102,
+  "mean_prediction_entropy_nats": 0.6976863452946651,
+  "mean_max_probability": 0.66983587740946,
+  "median_max_probability": 0.6211548736106415,
+  "p90_max_probability": 0.9746341757850702,
+  "predicted_counts": {
+    "winner_model_a": 469,
+    "winner_model_b": 390,
+    "winner_tie": 341
+  },
+  "mean_predicted_probabilities": {
+    "winner_model_a": 0.372674424004749,
+    "winner_model_b": 0.33977078608833006,
+    "winner_tie": 0.28755478990692096
+  },
+  "true_counts": {
+    "winner_model_a": 419,
+    "winner_model_b": 410,
+    "winner_tie": 371
+  },
+  "confusion_matrix_true_rows_predicted_columns": [
+    [
+      172,
+      139,
+      108
+    ],
+    [
+      166,
+      118,
+      126
+    ],
+    [
+      131,
+      133,
+      107
+    ]
+  ],
+  "classwise": {
+    "winner_model_a": {
+      "true_n": 419,
+      "predicted_n": 469,
+      "mean_true_class_probability": 0.3882269861528339,
+      "mean_negative_log_likelihood": 1.7405494184632562,
+      "recall": 0.4105011933174224
+    },
+    "winner_model_b": {
+      "true_n": 410,
+      "predicted_n": 390,
+      "mean_true_class_probability": 0.3168399887196294,
+      "mean_negative_log_likelihood": 2.0433744338132502,
+      "recall": 0.28780487804878047
+    },
+    "winner_tie": {
+      "true_n": 371,
+      "predicted_n": 341,
+      "mean_true_class_probability": 0.29419750756833124,
+      "mean_negative_log_likelihood": 2.129915012337973,
+      "recall": 0.2884097035040431
+    }
+  },
+  "confidence_reliability_bins": [
+    {
+      "lower_confidence": 0,
+      "upper_confidence": 0.1,
+      "n": 0,
+      "mean_confidence": null,
+      "accuracy": null
+    },
+    {
+      "lower_confidence": 0.1,
+      "upper_confidence": 0.2,
+      "n": 0,
+      "mean_confidence": null,
+      "accuracy": null
+    },
+    {
+      "lower_confidence": 0.2,
+      "upper_confidence": 0.3,
+      "n": 0,
+      "mean_confidence": null,
+      "accuracy": null
+    },
+    {
+      "lower_confidence": 0.3,
+      "upper_confidence": 0.4,
+      "n": 92,
+      "mean_confidence": 0.3792480239177587,
+      "accuracy": 0.2826086956521739
+    },
+    {
+      "lower_confidence": 0.4,
+      "upper_confidence": 0.5,
+      "n": 268,
+      "mean_confidence": 0.44738785154680055,
+      "accuracy": 0.35074626865671643
+    },
+    {
+      "lower_confidence": 0.5,
+      "upper_confidence": 0.6,
+      "n": 200,
+      "mean_confidence": 0.5469373163844555,
+      "accuracy": 0.3
+    },
+    {
+      "lower_confidence": 0.6,
+      "upper_confidence": 0.7,
+      "n": 131,
+      "mean_confidence": 0.6445233542471855,
+      "accuracy": 0.3435114503816794
+    },
+    {
+      "lower_confidence": 0.7,
+      "upper_confidence": 0.8,
+      "n": 98,
+      "mean_confidence": 0.7510211094699589,
+      "accuracy": 0.3469387755102041
+    },
+    {
+      "lower_confidence": 0.8,
+      "upper_confidence": 0.9,
+      "n": 125,
+      "mean_confidence": 0.8529569779469733,
+      "accuracy": 0.32
+    },
+    {
+      "lower_confidence": 0.9,
+      "upper_confidence": 1,
+      "n": 286,
+      "mean_confidence": 0.9614425762995654,
+      "accuracy": 0.34265734265734266
+    }
+  ],
+  "expected_calibration_error_10_bin": 0.3390025440761268,
+  "notes": [
+    "ECE uses the maximum predicted probability and ten equal-width bins. Small-bin estimates are noisy.",
+    "Scores are for the original Qwen pilot row-random validation subset, not the prompt-grouped reporting holdout or Kaggle leaderboard."
+  ],
+  "swap_diagnostic": {
+    "n": 128,
+    "mean_absolute_probability_disagreement": 0.2949862769733087,
+    "fraction_rows_with_any_class_difference_above_0p2": 0.7109375,
+    "fraction_rows_with_changed_predicted_winner": 0.6640625,
+    "meaning": "Model order instability after relabeling swapped A/B. Not a measurement of human presentation bias."
+  },
+  "rendered_token_truncation": {
+    "evaluated_rows": 1200,
+    "sequence_max_tokens": 384,
+    "rendered_token_length_mean": 574.8108333333333,
+    "rendered_token_length_median": 554.5,
+    "rendered_token_length_p90": 1017.1000000000001,
+    "rendered_token_length_max": 2359,
+    "fraction_rendered_sequence_exceeds_token_limit": 0.655,
+    "warning": "Also includes earlier character caps in normalized_frame (2400 per column), render_pair (1200 prompt, 2400 per response); full original content beyond those caps is not included in token-length counts."
+  },
+  "original_character_cap_rates": {
+    "prompt": {
+      "cap_characters": 1200,
+      "fraction_raw_fields_exceed_cap": 0.06
+    },
+    "response_a": {
+      "cap_characters": 2400,
+      "fraction_raw_fields_exceed_cap": 0.11833333333333333
+    },
+    "response_b": {
+      "cap_characters": 2400,
+      "fraction_raw_fields_exceed_cap": 0.1175
+    }
+  },
+  "model_check": {
+    "loaded_saved_classifier_weight_tensors": 1,
+    "num_classes": 3,
+    "adapter_source": "previous private Kaggle Qwen LoRA v2 output",
+    "no_new_training": true
+  },
+  "reproducibility": {
+    "previous_validation_log_loss": 1.963874524651205,
+    "difference_in_log_loss": 0.0005189701628989241,
+    "previous_swap_mean_abs_disagreement": 0.2941593651868554,
+    "difference_in_swap_mean_abs_disagreement": 0.0008269117864532771
+  }
+}
