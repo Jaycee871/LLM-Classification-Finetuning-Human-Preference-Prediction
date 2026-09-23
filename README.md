@@ -49,6 +49,21 @@ A new [official-data CPU pilot workflow](.github/workflows/official-data-cpu-pil
 
 The workflow's aggregate validation numbers are a research *pilot*, not Kaggle leaderboard results. Qwen GPU training still requires a separate Kaggle GPU Notebook execution.
 
+## Actual results and competition-ready CPU Notebook
+
+Two CPU experiments have now **executed on the official competition dataset** (57,477 labeled rows, identical 12,000-row exploratory pilot, 1,800 outer-validation rows). See [the first-results discussion](docs/FIRST_RESULTS.md) and the tracked aggregate JSON in [`results/`](results/).
+
+| Exploratory predictor | Held-out multiclass log loss |
+| --- | ---: |
+| Original TF-IDF / pair-swap logistic regression | 1.174414 |
+| Uniform three-class probabilities | 1.098612 |
+| Training-class-prior probabilities | 1.097219 |
+| **Inner-tuned length-only logistic regression** | **1.057783** |
+
+**Caution:** These exploratory results share a row-random outer fold; prompts may repeat across train/validation. Repeated model development against that fold is *not* independent scientific confirmation. Character length does not measure warmth or causally determine preference.
+
+A new [self-contained Kaggle length-only submission Notebook](notebooks/kaggle_length_submission.ipynb) is prepared. On Kaggle, attach the official competition dataset through **Add Input**, keep **Internet Off**, run on CPU, then commit the Notebook to create `/kaggle/working/submission.csv`. **No leaderboard submission or score is claimed.** The Notebook is synchronized against authoritative modules via `python scripts/sync_length_notebook.py`; CI checks for drift.
+
 ## Experimental design
 
 1. Establish a leak-controlled random stratified validation split and record three-class log loss.
@@ -63,8 +78,10 @@ See [docs/EXPERIMENT_PLAN.md](docs/EXPERIMENT_PLAN.md) for evaluation and reprod
 - `src/baseline.py`: reproducible three-class starter model and inference.
 - `src/diagnostics.py`: aggregate response-length and A/B-order stability auditing.
 - `src/finetune_lora.py`: optional GPU LoRA pilot; expects user-attached local model weights.
+- `src/length_baseline.py`: exploratory length-only predictor with inner-fold regularization selection.
 - `notebooks/kaggle_starter.ipynb`: offline Kaggle Notebook submission starter.
 - `notebooks/kaggle_gpu_lora_pilot.ipynb`: offline Kaggle GPU pilot with bundled source.
+- `notebooks/kaggle_length_submission.ipynb`: self-contained offline CPU Kaggle submission starter based on the observed length-only baseline.
 - `scripts/download_competition.sh`: authenticated CLI download (local only).
 - `tests/`: synthetic smoke tests, safe to run in public CI.
 - `docs/`: research protocol and offline GPU pilot setup guide, plus official-data CPU pilot procedure.
