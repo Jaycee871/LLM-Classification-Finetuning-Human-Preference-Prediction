@@ -1,6 +1,6 @@
 name: Publish and submit Kaggle notebook
 on:
-  # A separately named one-time trigger commit launches the first run.
+  # One deliberately named retry commit updates the preexisting Kaggle Notebook to v2.
   # Ordinary maintenance edits do not trigger another Kaggle submission.
   push:
     branches: [main]
