@@ -43,6 +43,12 @@ The script describes how often the longer response won, separately counts A/B/ti
 
 For an **optional GPU** pilot, see [the Kaggle LoRA guide](docs/GPU_PILOT.md) and the [offline GPU Notebook](notebooks/kaggle_gpu_lora_pilot.ipynb). Attach official competition data and a complete base model as Kaggle Inputs. The Notebook includes all required project source code, trains LoRA adapters for a Qwen2.5-0.5B three-way sequence classifier, evaluates a held-out subset, and prepares the submission. **It has not yet been run on official data or Kaggle GPUs.** Install dependencies in advance via Kaggle's Dependency Manager; the scoring Notebook must keep Internet disabled. Pilot size is capped deliberately, so its metrics are preliminary.
 
+## Next experiment: real-data aggregate CPU pilot
+
+A new [official-data CPU pilot workflow](.github/workflows/official-data-cpu-pilot.yml) downloads `train.csv` from Kaggle into an ephemeral GitHub runner, trains the CPU TF-IDF model on a **seeded, stratified 12,000-row pilot sample**, and uploads **aggregate JSON only** (no raw text, checkpoint or API token). It is set to run once when its workflow file first reaches `main`; future runs are available through **Actions > Kaggle official-data CPU pilot > Run workflow**. A verified API key does **not** guarantee download permissions if competition rules were not accepted. See [setup, limits and failure guide](docs/OFFICIAL_CPU_PILOT.md).
+
+The workflow's aggregate validation numbers are a research *pilot*, not Kaggle leaderboard results. Qwen GPU training still requires a separate Kaggle GPU Notebook execution.
+
 ## Experimental design
 
 1. Establish a leak-controlled random stratified validation split and record three-class log loss.
@@ -61,7 +67,7 @@ See [docs/EXPERIMENT_PLAN.md](docs/EXPERIMENT_PLAN.md) for evaluation and reprod
 - `notebooks/kaggle_gpu_lora_pilot.ipynb`: offline Kaggle GPU pilot with bundled source.
 - `scripts/download_competition.sh`: authenticated CLI download (local only).
 - `tests/`: synthetic smoke tests, safe to run in public CI.
-- `docs/`: research protocol and offline GPU pilot setup guide.
+- `docs/`: research protocol and offline GPU pilot setup guide, plus official-data CPU pilot procedure.
 - `data/`, `artifacts/`: local, ignored experiment inputs and outputs.
 
 **Competition reference:** Chiang et al., *LLM Classification Finetuning*, Kaggle (2024).
