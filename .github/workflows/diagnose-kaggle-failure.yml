@@ -27,6 +27,21 @@ jobs:
           python -m pip install 'kaggle>=1.7,<3'
           echo "=== Kernel status ==="
           kaggle kernels status "$KERNEL"
+          echo "=== Check notebook's saved Kaggle metadata ==="
+          mkdir -p /tmp/kaggle_pull
+          kaggle kernels pull "$KERNEL" -p /tmp/kaggle_pull -m > /tmp/kaggle_pull.log 2>&1 || true
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          files=list(Path('/tmp/kaggle_pull').rglob('kernel-metadata.json'))
+          if not files:
+              print('Unable to retrieve metadata:', Path('/tmp/kaggle_pull.log').read_text()[-1200:])
+          for file in files:
+              obj=json.loads(file.read_text())
+              print('Metadata ID:',obj.get('id'))
+              print('Metadata competition_sources:',obj.get('competition_sources'))
+              print('Metadata dataset_sources:',obj.get('dataset_sources'))
+          PY
           echo "=== Kernel log attempt ==="
           kaggle kernels logs "$KERNEL" > /tmp/kaggle_logs.txt 2>&1 || true
           echo "=== Download diagnostic output (no raw competition dataset) ==="
