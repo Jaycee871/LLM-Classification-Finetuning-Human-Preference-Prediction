@@ -5,6 +5,7 @@ It neither measures warmth nor establishes a causal preference for verbosity.
 Only aggregate JSON may be published; official Kaggle data stay local.
 """
 import argparse
+import hashlib
 import json
 import os
 from datetime import datetime, timezone
@@ -18,7 +19,14 @@ from sklearn.metrics import log_loss
 from sklearn.model_selection import train_test_split
 
 from src.baseline import TARGETS, flatten_messages, flip_pairs, get_labels
-from scripts.run_official_cpu_pilot import file_sha256
+
+
+def file_sha256(path):
+    digest = hashlib.sha256()
+    with open(path, 'rb') as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def feature_matrix(df):
