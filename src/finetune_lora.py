@@ -186,9 +186,6 @@ def train_and_predict(args):
     metrics["swap_probe_mean_abs_difference"] = float(
         np.abs(original_prob - swapped_prob).mean()
     )
-    (output / "gpu_pilot_metrics.json").write_text(
-        json.dumps(metrics, indent=2) + "\n", encoding="utf-8"
-    )
     adapter_dir = output / "adapter"
     trainer.model.save_pretrained(adapter_dir)
     tokenizer.save_pretrained(adapter_dir)
@@ -209,6 +206,10 @@ def train_and_predict(args):
         submission.to_csv(submission_path, index=False)
         metrics["submission_rows"] = int(len(submission))
         print(f"Submission written to {submission_path}")
+    # Persist after optional test inference so the artifact includes submission_rows.
+    (output / "gpu_pilot_metrics.json").write_text(
+        json.dumps(metrics, indent=2) + "\n", encoding="utf-8"
+    )
     print(json.dumps(metrics, indent=2))
     return metrics
 
