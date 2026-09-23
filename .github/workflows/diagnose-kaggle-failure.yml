@@ -1,4 +1,5 @@
 name: Diagnose Kaggle notebook failure
+# Check newly published version 2 input mounts before another submission.
 on:
   push:
     branches: [main]
