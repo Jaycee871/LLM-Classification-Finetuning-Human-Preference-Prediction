@@ -12,6 +12,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   launch:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.head_commit.message, 'Retry Qwen GPU v2')
     runs-on: ubuntu-latest
     timeout-minutes: 175
     env:
