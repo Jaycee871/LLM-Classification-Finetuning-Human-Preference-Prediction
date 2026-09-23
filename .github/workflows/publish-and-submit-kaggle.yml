@@ -14,6 +14,7 @@ on:
         options:
           - push_and_submit
           - submit_existing
+          - update_and_submit
         default: push_and_submit
         required: true
       version:
@@ -30,14 +31,14 @@ jobs:
   submit:
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      startsWith(github.event.head_commit.message, 'Start Kaggle CLI submission job')
+      startsWith(github.event.head_commit.message, 'Start Kaggle CLI retry v2')
     runs-on: ubuntu-latest
     timeout-minutes: 55
     env:
       KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN || secrets.KAGGLE_TOKEN }}
       KERNEL: packkwanlow/llm-preference-length-baseline-2026
       COMPETITION: llm-classification-finetuning
-      VERSION: ${{ inputs.version || '1' }}
+      VERSION: ${{ inputs.version || '2' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -53,25 +54,24 @@ jobs:
           fi
           python -m pip install 'kaggle>=1.7,<3'
           kaggle competitions files "$COMPETITION" -q
-      - name: Push the offline CPU notebook to Kaggle
-        if: github.event_name == 'push' || inputs.mode == 'push_and_submit'
+      - name: Publish offline CPU Notebook to the existing Kaggle kernel
+        if: github.event_name == 'push' || inputs.mode == 'update_and_submit' || inputs.mode == 'push_and_submit'
         shell: bash
         run: |
           set -euo pipefail
-          # This pipeline targets one specific new, private notebook and version 1.
-          # Refuse to overwrite an existing notebook unintentionally.
-          if [[ "$VERSION" != '1' ]]; then
-            echo '::error::The new-notebook path creates version 1. Select submit_existing for an existing version.'
+          if [[ "${{ inputs.mode }}" == "push_and_submit" ]] && kaggle kernels status "$KERNEL" >/dev/null 2>&1; then
+            echo '::error::This Kaggle notebook already exists. Use update_and_submit or submit_existing.'
             exit 1
           fi
-          if kaggle kernels status "$KERNEL" >/dev/null 2>&1; then
-            echo '::error::The Kaggle notebook already exists. Choose submit_existing with its completed version.'
+          if [[ "${{ inputs.mode }}" == "push_and_submit" ]] && [[ "$VERSION" != "1" ]]; then
+            echo '::error::Brand-new kernels create version 1. Set version=1.'
             exit 1
           fi
           mkdir -p kaggle_publish
           cp notebooks/kaggle_length_submission.ipynb kaggle_publish/kaggle_length_submission.ipynb
           cp kaggle_submission/kernel-metadata.json kaggle_publish/kernel-metadata.json
           kaggle kernels push -p kaggle_publish
+          echo "Requested notebook version $VERSION. Inspect push log to confirm actual version."
       - name: Wait for Kaggle notebook version to complete
         shell: bash
         run: |
@@ -84,7 +84,23 @@ jobs:
             # Current CLI reports "has status \"KernelWorkerStatus.ERROR\"",
             # not "status: ERROR". Match actual CLI enums and fail fast.
             if echo "$status" | grep -Eiq 'KernelWorkerStatus\\.(ERROR|FAILED|CANCELED|CANCELLED)'; then
-              echo "::error::Kaggle notebook reported a terminal failure. Inspect Kaggle execution logs before retrying."
+              echo "::error::Kaggle notebook failed; diagnosing the Kaggle execution traceback."
+              kaggle kernels logs "$KERNEL" >/tmp/kaggle_kernel_log.json 2>/dev/null || true
+              python - <<'PY'
+              import json
+              from pathlib import Path
+              path=Path("/tmp/kaggle_kernel_log.json")
+              if path.exists():
+                  try:
+                      entries=json.loads(path.read_text())
+                      candidates=[x.get("data","") for x in entries if
+                                  any(v in x.get("data","") for v in
+                                      ("Traceback", "AssertionError", "FileNotFoundError", "ValueError",
+                                       "Attached Kaggle input folders:", "Error:"))]
+                      print("Kaggle diagnostic:", "\\n".join(candidates)[-5000:])
+                  except (TypeError,ValueError):
+                      print("Kaggle log excerpt:",path.read_text()[-5000:])
+              PY
               exit 1
             fi
             if echo "$status" | grep -Eiq 'KernelWorkerStatus\\.(COMPLETE|COMPLETED|SUCCESS)'; then
@@ -109,7 +125,7 @@ jobs:
             echo '::error::Specify a positive numeric Kaggle notebook version.'
             exit 1
           fi
-          kaggle competitions submit -c "$COMPETITION" \
+          kaggle competitions submit "$COMPETITION" \
             -f submission.csv -k "$KERNEL" -v "$VERSION" \
             -m "Offline length-only baseline, GitHub commit ${GITHUB_SHA:0:12}"
           echo "Submitted kernel $KERNEL version $VERSION. Check Kaggle's Submissions tab for scoring."
