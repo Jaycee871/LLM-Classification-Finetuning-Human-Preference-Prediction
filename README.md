@@ -27,6 +27,10 @@ Run local tests with `pytest -q`. GitHub Actions runs these tests without using 
 - `data/*.csv`, checkpoints, `submission.csv` and credentials are gitignored. The competition dataset uses **CC BY-NC 4.0**; do not commit or republish it without checking the license and rules.
 - **This repository is currently public.** Change Settings > General > Danger Zone > Change repository visibility if you intended a private project.
 
+## Verify Kaggle API access (optional manual workflow)
+
+Open **Actions > Verify Kaggle access (manual) > Run workflow**. This check reads the repository secret **KAGGLE_API_TOKEN** (preferred) or **KAGGLE_TOKEN** (legacy alias), then tries listing the competition's files. No token is displayed, and no competition data are downloaded or published. If your existing secret has another name, rename it to one of these; do not paste its value into source code. A successful check verifies this API request only; accepting the competition rules and running/submitting a notebook are separate steps.
+
 ## Experimental design
 
 1. Establish a leak-controlled random stratified validation split and record three-class log loss.
