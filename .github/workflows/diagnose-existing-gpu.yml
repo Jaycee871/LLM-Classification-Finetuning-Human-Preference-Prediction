@@ -1,0 +1,50 @@
+name: Diagnose existing Qwen GPU pilot without retraining
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-existing-gpu.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: diagnose-existing-gpu
+  cancel-in-progress: false
+jobs:
+  diagnose:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.head_commit.message, 'Diagnose existing Qwen GPU run')
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN || secrets.KAGGLE_TOKEN }}
+      KERNEL: packkwanlow/llm-preference-qwen05b-lora-pilot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download prior private Kaggle GPU aggregate JSON only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$KAGGLE_API_TOKEN" || { echo "::error::Missing existing Kaggle secret"; exit 1; }
+          python -m pip install 'kaggle>=1.7,<3'
+          mkdir -p private_prior_metrics
+          kaggle kernels output "$KERNEL" -p private_prior_metrics \
+            --file-pattern '.*gpu_pilot_metrics[.]json$' -o
+          test -s private_prior_metrics/gpu_pilot/gpu_pilot_metrics.json
+      - name: Assess matched reference, uniform baseline and metric availability
+        run: |
+          python -m scripts.diagnose_gpu_pilot \
+            --input private_prior_metrics/gpu_pilot/gpu_pilot_metrics.json \
+            --output aggregate_report/qwen_v2_diagnostics.json
+      - name: Upload derived aggregate-only report
+        uses: actions/upload-artifact@v4
+        with:
+          name: existing-qwen-pilot-aggregate-diagnostics
+          path: aggregate_report/qwen_v2_diagnostics.json
+          retention-days: 14
+          if-no-files-found: error
+# This workflow does not push a Kaggle kernel, trigger GPU use, or submit.
