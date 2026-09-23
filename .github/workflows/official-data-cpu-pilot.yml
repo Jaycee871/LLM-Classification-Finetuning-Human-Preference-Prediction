@@ -33,8 +33,23 @@ jobs:
             exit 1
           fi
           mkdir -p data
-          kaggle competitions download llm-classification-finetuning -f train.csv -p data --unzip -q
-          test -s data/train.csv || { echo '::error::Official train.csv missing. Have you accepted the competition rules?'; exit 1; }
+          kaggle competitions download llm-classification-finetuning -f train.csv -p data -q
+          # CLI versions differ: a single-file download may produce train.csv
+          # directly or an archive. Extract only the expected member.
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, is_zipfile
+          path = Path("data/train.csv")
+          if not path.is_file():
+              for archive in Path("data").glob("*.zip"):
+                  if is_zipfile(archive):
+                      with ZipFile(archive) as handle:
+                          if "train.csv" in handle.namelist():
+                              handle.extract("train.csv", "data")
+                              break
+          if not path.is_file() or path.stat().st_size == 0:
+              raise SystemExit("Official train.csv missing. Did you accept the competition rules?")
+          PY
           echo 'Official train.csv downloaded securely (data will not be uploaded).'
       - name: Fit CPU baseline and publish only aggregate metrics
         run: python -m scripts.run_official_cpu_pilot --train data/train.csv --out artifacts/official_cpu_pilot --sample-size 12000
