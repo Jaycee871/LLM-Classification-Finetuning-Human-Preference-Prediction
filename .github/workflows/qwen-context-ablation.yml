@@ -1,0 +1,92 @@
+name: Run saved Qwen context-length ablation
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/qwen-context-ablation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: qwen-context-length-ablation
+  cancel-in-progress: false
+jobs:
+  ablation:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.head_commit.message, 'Run Qwen context-length ablation')
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN || secrets.KAGGLE_TOKEN }}
+      KERNEL: packkwanlow/qwen-context-length-ablation
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Preflight Kaggle access
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$KAGGLE_API_TOKEN" || { echo "::error::Missing Kaggle API secret"; exit 1; }
+          python -m pip install 'kaggle>=1.7,<3'
+          kaggle competitions files llm-classification-finetuning -q
+      - name: Publish private inference-only ablation Notebook
+        shell: bash
+        run: |
+          set -euo pipefail
+          if kaggle kernels status "$KERNEL" >/dev/null 2>&1; then
+            echo '::error::Ablation kernel already exists; refusing automatic overwrite.'
+            exit 1
+          fi
+          mkdir -p publish
+          cp notebooks/qwen_context_length_ablation.ipynb publish/
+          cp kaggle_context_ablation/kernel-metadata.json publish/kernel-metadata.json
+          kaggle kernels push -p publish --accelerator NvidiaTeslaT4 | tee /tmp/push.log
+      - name: Wait for context ablation
+        shell: bash
+        run: |
+          set -euo pipefail
+          for poll in $(seq 1 135); do
+            status="$(kaggle kernels status "$KERNEL" 2>&1 || true)"
+            echo "Ablation status ($poll): $status"
+            if echo "$status" | grep -Eiq 'KernelWorkerStatus[.](ERROR|FAILED|CANCELLED|CANCELED)'; then
+              echo "::error::Private Kaggle ablation failed."
+              exit 1
+            fi
+            if echo "$status" | grep -Eiq 'KernelWorkerStatus[.](COMPLETE|COMPLETED|SUCCESS)'; then break; fi
+            if [[ "$poll" -eq 135 ]]; then echo "::error::Ablation timed out"; exit 1; fi
+            sleep 45
+          done
+      - name: Download aggregate-only ablation JSON
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p aggregate
+          kaggle kernels output "$KERNEL" -p aggregate --file-pattern '.*qwen_context_ablation[.]json$' -o
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          files=list(Path('aggregate').rglob('qwen_context_ablation.json'))
+          if len(files)!=1: raise SystemExit('Expected one aggregate context ablation JSON')
+          data=json.loads(files[0].read_text())
+          if data.get('no_new_training') is not True or data.get('validation_rows')!=1200:
+              raise SystemExit('Unexpected ablation provenance')
+          print(json.dumps({
+            c:{
+              'log_loss':data['results'][c]['multiclass_log_loss'],
+              'accuracy':data['results'][c]['accuracy'],
+              'ece':data['results'][c]['expected_calibration_error_10_bin'],
+              'truncation':data['results'][c]['rendered_token_truncation']['fraction_rendered_sequence_exceeds_token_limit'],
+              'swap_changed_winner':data['results'][c]['swap_diagnostic']['fraction_rows_with_changed_predicted_winner']
+            } for c in ('384','768','1024')
+          },indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qwen-context-ablation-aggregate-only
+          path: aggregate/**/qwen_context_ablation.json
+          retention-days: 14
+          if-no-files-found: error
+# Inference only. No training and no competition submission.
