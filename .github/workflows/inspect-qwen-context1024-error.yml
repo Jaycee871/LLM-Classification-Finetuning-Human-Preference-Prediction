@@ -1,0 +1,33 @@
+name: Inspect failed Qwen context1024 Kaggle Notebook
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/inspect-qwen-context1024-error.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN || secrets.KAGGLE_TOKEN }}
+      KERNEL: packkwanlow/qwen-context1024-experimental-submission
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Inspect private Kaggle kernel failure safely
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$KAGGLE_API_TOKEN" || { echo "::error::Missing Kaggle secret"; exit 1; }
+          python -m pip install 'kaggle>=1.7,<3'
+          echo "=== Status ==="
+          kaggle kernels status "$KERNEL" || true
+          echo "=== Output files ==="
+          kaggle kernels files "$KERNEL" --page-size 100 || true
+          echo "=== Bounded execution log tail ==="
+          kaggle kernels logs "$KERNEL" > /tmp/qwen1024.log 2>&1 || true
+          tail -c 14000 /tmp/qwen1024.log
