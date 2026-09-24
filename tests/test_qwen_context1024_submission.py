@@ -16,6 +16,7 @@ def test_qwen_1024_submission_notebook_is_inference_only():
     # Training code may be embedded only as an offline dependency for render_pair,
     # but it must never be invoked by the submission execution cell.
     assert "from src.qwen_submit_1024 import run" in code
+    assert "length_baseline.py" in code
 
 def test_qwen_1024_metadata_is_private_offline_and_uses_prior_adapter():
     m=json.loads((ROOT/"kaggle_qwen_submit"/"kernel-metadata.json").read_text())
