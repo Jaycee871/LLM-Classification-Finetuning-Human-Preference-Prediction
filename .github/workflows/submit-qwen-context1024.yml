@@ -14,15 +14,15 @@ jobs:
   submit:
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (startsWith(github.event.head_commit.message, 'Submit Qwen context1024 experimental entry') ||
-       startsWith(github.event.head_commit.message, 'Resume Qwen context1024 submission'))
+      startsWith(github.event.head_commit.message, 'Submit Qwen context1024 experimental entry') ||
+      startsWith(github.event.head_commit.message, 'Retry Qwen context1024 version2')
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
       KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN || secrets.KAGGLE_TOKEN }}
       KERNEL: packkwanlow/qwen-context1024-experimental-submission
       COMPETITION: llm-classification-finetuning
-      KAGGLE_VERSION: '1'
+      KAGGLE_VERSION: '2'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -35,12 +35,19 @@ jobs:
           python -m pip install 'kaggle>=1.7,<3'
           kaggle competitions files "$COMPETITION" -q
       - name: Publish private GPU code-submission Notebook
-        if: startsWith(github.event.head_commit.message, 'Submit Qwen context1024 experimental entry')
+        if: >-
+          startsWith(github.event.head_commit.message, 'Submit Qwen context1024 experimental entry') ||
+          startsWith(github.event.head_commit.message, 'Retry Qwen context1024 version2')
         run: |
           set -euo pipefail
-          if kaggle kernels status "$KERNEL" >/dev/null 2>&1; then
-            echo "::error::Kernel already exists; refusing duplicate automatic submission."
-            exit 1
+          IS_RETRY="${{ startsWith(github.event.head_commit.message, 'Retry Qwen context1024 version2') }}"
+          if [[ "$IS_RETRY" == "true" ]]; then
+            kaggle kernels status "$KERNEL" >/dev/null 2>&1 || { echo "::error::Expected existing version-1 kernel before repair."; exit 1; }
+          else
+            if kaggle kernels status "$KERNEL" >/dev/null 2>&1; then
+              echo "::error::Kernel already exists; refusing duplicate automatic submission."
+              exit 1
+            fi
           fi
           mkdir -p publish
           cp notebooks/qwen_context1024_submission.ipynb publish/
@@ -49,16 +56,19 @@ jobs:
           VERSION="$(python - <<'PY'
           import re
           from pathlib import Path
-          m=re.search(r'Kernel version (\d+) successfully pushed',Path('/tmp/push.log').read_text())
-          if not m: raise SystemExit('Could not parse Kaggle kernel version')
+          text=Path('/tmp/push.log').read_text()
+          m=re.search(r'Kernel version (\d+) successfully pushed', text)
+          if not m:
+              raise SystemExit('Could not parse Kaggle kernel version')
           print(m.group(1))
           PY
           )"
-          echo "KAGGLE_VERSION=$VERSION" >> "$GITHUB_ENV"
-          ACTUAL_URL="$(grep -Eo 'https://www[.]kaggle[.]com/code/[^ ]+' /tmp/push.log | tail -1 || true)"
-          if [[ -n "$ACTUAL_URL" ]]; then
-            echo "Kaggle created: $ACTUAL_URL"
+          if [[ "$IS_RETRY" == "true" && "$VERSION" != "2" ]]; then
+            echo "::error::Expected repaired Notebook to become Kaggle version 2, got $VERSION."
+            exit 1
           fi
+          echo "KAGGLE_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "Published Kaggle kernel $KERNEL version $VERSION"
       - name: Wait for preview Notebook execution and confirm submission.csv
         run: |
           set -euo pipefail
@@ -66,11 +76,12 @@ jobs:
             status="$(kaggle kernels status "$KERNEL" 2>&1 || true)"
             echo "Preview status ($poll): $status"
             if echo "$status" | grep -Eiq 'Permission .* denied|Cannot access kernel'; then
-              echo "::error::Kaggle kernel slug/access mismatch; fail immediately rather than polling."
+              echo "::error::Kaggle kernel slug/access mismatch; failing immediately."
               exit 1
             fi
             if echo "$status" | grep -Eiq 'KernelWorkerStatus[.](ERROR|FAILED|CANCELLED|CANCELED)'; then
               echo "::error::Qwen submission notebook failed before competition submission."
+              kaggle kernels logs "$KERNEL" 2>/dev/null | tail -c 12000 || true
               exit 1
             fi
             if echo "$status" | grep -Eiq 'KernelWorkerStatus[.](COMPLETE|COMPLETED|SUCCESS)'; then break; fi
@@ -82,5 +93,7 @@ jobs:
       - name: Submit Qwen 1024 Notebook version to Kaggle competition
         run: |
           set -euo pipefail
-          kaggle competitions submit "$COMPETITION"             -f submission.csv -k "$KERNEL" -v "$KAGGLE_VERSION"             -m "Qwen2.5-0.5B LoRA experimental, 1024-token context, saved adapter"
+          kaggle competitions submit "$COMPETITION" \
+            -f submission.csv -k "$KERNEL" -v "$KAGGLE_VERSION" \
+            -m "Qwen2.5-0.5B LoRA experimental, 1024-token context, saved adapter"
           echo "Kaggle experimental submission requested for $KERNEL version $KAGGLE_VERSION"
