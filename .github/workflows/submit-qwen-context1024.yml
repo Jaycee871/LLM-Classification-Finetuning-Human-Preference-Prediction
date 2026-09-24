@@ -14,13 +14,15 @@ jobs:
   submit:
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      startsWith(github.event.head_commit.message, 'Submit Qwen context1024 experimental entry')
+      (startsWith(github.event.head_commit.message, 'Submit Qwen context1024 experimental entry') ||
+       startsWith(github.event.head_commit.message, 'Resume Qwen context1024 submission'))
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
       KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN || secrets.KAGGLE_TOKEN }}
-      KERNEL: packkwanlow/qwen-context1024-submission
+      KERNEL: packkwanlow/qwen-context1024-experimental-submission
       COMPETITION: llm-classification-finetuning
+      KAGGLE_VERSION: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -33,6 +35,7 @@ jobs:
           python -m pip install 'kaggle>=1.7,<3'
           kaggle competitions files "$COMPETITION" -q
       - name: Publish private GPU code-submission Notebook
+        if: startsWith(github.event.head_commit.message, 'Submit Qwen context1024 experimental entry')
         run: |
           set -euo pipefail
           if kaggle kernels status "$KERNEL" >/dev/null 2>&1; then
@@ -52,12 +55,20 @@ jobs:
           PY
           )"
           echo "KAGGLE_VERSION=$VERSION" >> "$GITHUB_ENV"
+          ACTUAL_URL="$(grep -Eo 'https://www[.]kaggle[.]com/code/[^ ]+' /tmp/push.log | tail -1 || true)"
+          if [[ -n "$ACTUAL_URL" ]]; then
+            echo "Kaggle created: $ACTUAL_URL"
+          fi
       - name: Wait for preview Notebook execution and confirm submission.csv
         run: |
           set -euo pipefail
           for poll in $(seq 1 150); do
             status="$(kaggle kernels status "$KERNEL" 2>&1 || true)"
             echo "Preview status ($poll): $status"
+            if echo "$status" | grep -Eiq 'Permission .* denied|Cannot access kernel'; then
+              echo "::error::Kaggle kernel slug/access mismatch; fail immediately rather than polling."
+              exit 1
+            fi
             if echo "$status" | grep -Eiq 'KernelWorkerStatus[.](ERROR|FAILED|CANCELLED|CANCELED)'; then
               echo "::error::Qwen submission notebook failed before competition submission."
               exit 1
