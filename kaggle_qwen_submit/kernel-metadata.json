@@ -1,0 +1,21 @@
+{
+  "id": "packkwanlow/qwen-context1024-submission",
+  "title": "Qwen Context1024 Experimental Submission",
+  "code_file": "qwen_context1024_submission.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": "true",
+  "enable_gpu": "true",
+  "enable_internet": "false",
+  "machine_shape": "NvidiaTeslaT4",
+  "dataset_sources": [],
+  "competition_sources": [
+    "llm-classification-finetuning"
+  ],
+  "kernel_sources": [
+    "packkwanlow/llm-preference-qwen05b-lora-pilot"
+  ],
+  "model_sources": [
+    "qwen-lm/qwen2.5/transformers/0.5b/1"
+  ]
+}
