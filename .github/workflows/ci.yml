@@ -19,4 +19,5 @@ jobs:
       - run: python scripts/sync_gpu_notebook.py --check
       - run: python scripts/sync_length_notebook.py --check
       - run: python scripts/sync_saved_adapter_notebook.py --check
+      - run: python scripts/sync_context_ablation_notebook.py --check
       - run: python -m pytest -q
