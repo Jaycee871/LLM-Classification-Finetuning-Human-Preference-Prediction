@@ -1,0 +1,88 @@
+name: Submit Qwen 1024 swap ensemble
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/submit-qwen-swap-ensemble.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: qwen-swap-ensemble-submit
+  cancel-in-progress: false
+jobs:
+  submit:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.head_commit.message, 'Submit Qwen swap ensemble entry')
+    runs-on: ubuntu-latest
+    timeout-minutes: 210
+    env:
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN || secrets.KAGGLE_TOKEN }}
+      COMPETITION: llm-classification-finetuning
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Kaggle CLI and verify access
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$KAGGLE_API_TOKEN" || { echo "::error::Missing Kaggle API secret"; exit 1; }
+          python -m pip install 'kaggle>=1.7,<3'
+          for attempt in 1 2 3; do
+            kaggle competitions files "$COMPETITION" -q && break
+            if [[ "$attempt" -eq 3 ]]; then exit 1; fi
+            sleep $((attempt*8))
+          done
+      - name: Publish private swap-ensemble Notebook and capture actual slug/version
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p publish
+          cp notebooks/qwen_swap_ensemble_submission.ipynb publish/
+          cp kaggle_qwen_swap_submit/kernel-metadata.json publish/kernel-metadata.json
+          kaggle kernels push -p publish --accelerator NvidiaTeslaT4 | tee /tmp/push.log
+          python - <<'PY'
+          import os,re
+          from pathlib import Path
+          text=Path('/tmp/push.log').read_text()
+          version=re.search(r'Kernel version (\d+) successfully pushed',text)
+          urls=re.findall(r'https://www[.]kaggle[.]com/code/([^/\s]+)/([^\s]+)',text)
+          if not version or not urls:
+              raise SystemExit('Could not parse actual Kaggle kernel/version')
+          owner,slug=urls[-1]
+          kernel=f'{owner}/{slug}'
+          with open(os.environ['GITHUB_ENV'],'a') as f:
+              f.write(f'KERNEL={kernel}\n')
+              f.write(f'KAGGLE_VERSION={version.group(1)}\n')
+          print('Actual kernel:',kernel,'version:',version.group(1))
+          PY
+      - name: Wait for preview Notebook and confirm submission.csv
+        shell: bash
+        run: |
+          set -euo pipefail
+          for poll in $(seq 1 180); do
+            status="$(kaggle kernels status "$KERNEL" 2>&1 || true)"
+            echo "Preview status ($poll): $status"
+            if echo "$status" | grep -Eiq 'Permission .* denied|Cannot access kernel'; then
+              echo "::error::Kernel slug/access mismatch"; exit 1
+            fi
+            if echo "$status" | grep -Eiq 'KernelWorkerStatus[.](ERROR|FAILED|CANCELLED|CANCELED)'; then
+              echo "::error::Swap-ensemble submission Notebook failed."
+              kaggle kernels logs "$KERNEL" 2>/dev/null | tail -c 14000 || true
+              exit 1
+            fi
+            if echo "$status" | grep -Eiq 'KernelWorkerStatus[.](COMPLETE|COMPLETED|SUCCESS)'; then break; fi
+            if [[ "$poll" -eq 180 ]]; then echo "::error::Preview timed out"; exit 1; fi
+            sleep 45
+          done
+          kaggle kernels files "$KERNEL" | tee /tmp/files.txt
+          grep -q 'submission.csv' /tmp/files.txt || { echo "::error::submission.csv missing"; exit 1; }
+      - name: Submit arithmetic swap ensemble to Kaggle
+        shell: bash
+        run: |
+          set -euo pipefail
+          kaggle competitions submit "$COMPETITION"             -f submission.csv -k "$KERNEL" -v "$KAGGLE_VERSION"             -m "Qwen2.5-0.5B LoRA 1024-token arithmetic A/B swap ensemble"
+          echo "Submitted $KERNEL version $KAGGLE_VERSION"
