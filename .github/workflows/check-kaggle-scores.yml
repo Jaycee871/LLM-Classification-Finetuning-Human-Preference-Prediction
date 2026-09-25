@@ -1,3 +1,4 @@
+# score refresh trigger
 name: Check Kaggle submission scores
 on:
   push:
