@@ -1,0 +1,21 @@
+{
+  "id": "packkwanlow/qwen-1024-swap-ensemble-audit",
+  "title": "Qwen 1024 Swap Ensemble Audit",
+  "code_file": "qwen_swap_ensemble_1024.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": "true",
+  "enable_gpu": "true",
+  "enable_internet": "false",
+  "machine_shape": "NvidiaTeslaT4",
+  "dataset_sources": [],
+  "competition_sources": [
+    "llm-classification-finetuning"
+  ],
+  "kernel_sources": [
+    "packkwanlow/llm-preference-qwen05b-lora-pilot"
+  ],
+  "model_sources": [
+    "qwen-lm/qwen2.5/transformers/0.5b/1"
+  ]
+}

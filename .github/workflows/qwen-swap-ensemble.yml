@@ -1,0 +1,111 @@
+name: Run Qwen 1024 swap ensemble audit
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/qwen-swap-ensemble.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: qwen-1024-swap-ensemble-audit
+  cancel-in-progress: false
+jobs:
+  audit:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.head_commit.message, 'Run Qwen swap ensemble audit')
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN || secrets.KAGGLE_TOKEN }}
+      EXPECTED_KERNEL: packkwanlow/qwen-1024-swap-ensemble-audit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify Kaggle access
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$KAGGLE_API_TOKEN" || { echo "::error::Missing Kaggle API secret"; exit 1; }
+          python -m pip install 'kaggle>=1.7,<3'
+          kaggle competitions files llm-classification-finetuning -q
+      - name: Publish private inference-only swap-ensemble Notebook
+        shell: bash
+        run: |
+          set -euo pipefail
+          if kaggle kernels status "$EXPECTED_KERNEL" >/dev/null 2>&1; then
+            echo "::error::Swap-ensemble audit kernel already exists; refusing automatic overwrite."
+            exit 1
+          fi
+          mkdir -p publish
+          cp notebooks/qwen_swap_ensemble_1024.ipynb publish/
+          cp kaggle_swap_ensemble/kernel-metadata.json publish/kernel-metadata.json
+          kaggle kernels push -p publish --accelerator NvidiaTeslaT4 | tee /tmp/push.log
+          python - <<'PY'
+          import os,re
+          from pathlib import Path
+          text=Path('/tmp/push.log').read_text()
+          url=re.findall(r'https://www[.]kaggle[.]com/code/([^/\s]+)/([^\s]+)',text)
+          if not url:
+              raise SystemExit('Could not parse actual Kaggle kernel URL')
+          owner,slug=url[-1]
+          kernel=f'{owner}/{slug}'
+          with open(os.environ['GITHUB_ENV'],'a') as f:
+              f.write('KERNEL='+kernel+'\n')
+          print('Actual Kaggle kernel:',kernel)
+          PY
+      - name: Wait for audit completion
+        shell: bash
+        run: |
+          set -euo pipefail
+          for poll in $(seq 1 150); do
+            status="$(kaggle kernels status "$KERNEL" 2>&1 || true)"
+            echo "Swap audit status ($poll): $status"
+            if echo "$status" | grep -Eiq 'Permission .* denied|Cannot access kernel'; then
+              echo "::error::Kaggle kernel slug/access mismatch."
+              exit 1
+            fi
+            if echo "$status" | grep -Eiq 'KernelWorkerStatus[.](ERROR|FAILED|CANCELLED|CANCELED)'; then
+              echo "::error::Private Qwen swap-ensemble audit failed."
+              kaggle kernels logs "$KERNEL" 2>/dev/null | tail -c 12000 || true
+              exit 1
+            fi
+            if echo "$status" | grep -Eiq 'KernelWorkerStatus[.](COMPLETE|COMPLETED|SUCCESS)'; then break; fi
+            if [[ "$poll" -eq 150 ]]; then echo "::error::Swap audit timed out"; exit 1; fi
+            sleep 45
+          done
+      - name: Download aggregate-only swap ensemble metrics
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p aggregate
+          kaggle kernels output "$KERNEL" -p aggregate --file-pattern '.*qwen_swap_ensemble[.]json$' -o
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          files=list(Path('aggregate').rglob('qwen_swap_ensemble.json'))
+          if len(files)!=1:
+              raise SystemExit('Expected one aggregate swap-ensemble JSON')
+          d=json.loads(files[0].read_text())
+          if d.get('validation_rows')!=1200 or d.get('no_new_training') is not True:
+              raise SystemExit('Unexpected swap-ensemble provenance')
+          print(json.dumps({
+              'original':d['original']['multiclass_log_loss'],
+              'swapped_aligned':d['swapped_aligned']['multiclass_log_loss'],
+              'arithmetic':d['arithmetic_swap_ensemble']['multiclass_log_loss'],
+              'geometric':d['geometric_swap_ensemble']['multiclass_log_loss'],
+              'changed_winner_fraction':d['original_vs_swapped']['fraction_rows_with_changed_predicted_winner'],
+              'best_method':d['lowest_observed_log_loss_method'],
+              'best_log_loss':d['lowest_observed_log_loss'],
+          },indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qwen-1024-swap-ensemble-aggregate
+          path: aggregate/**/qwen_swap_ensemble.json
+          retention-days: 14
+          if-no-files-found: error
+# Inference only: no model training and no competition submission.
