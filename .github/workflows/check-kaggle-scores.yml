@@ -1,0 +1,31 @@
+name: Check Kaggle submission scores
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/check-kaggle-scores.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN || secrets.KAGGLE_TOKEN }}
+      COMPETITION: llm-classification-finetuning
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Show latest Kaggle submissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$KAGGLE_API_TOKEN" || { echo "::error::Missing Kaggle API secret"; exit 1; }
+          python -m pip install 'kaggle>=1.7,<3'
+          for attempt in 1 2 3; do
+            kaggle competitions submissions "$COMPETITION" | head -n 12 && exit 0
+            if [[ "$attempt" -eq 3 ]]; then exit 1; fi
+            sleep $((attempt*8))
+          done
