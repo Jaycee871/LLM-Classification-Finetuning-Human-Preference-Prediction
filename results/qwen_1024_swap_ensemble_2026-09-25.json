@@ -1,0 +1,72 @@
+{
+  "type": "saved_qwen_1024_full_swap_ensemble",
+  "no_new_training": true,
+  "no_competition_submission": true,
+  "validation_rows": 1200,
+  "context_tokens": 1024,
+  "seed": 42,
+  "original": {
+    "multiclass_log_loss": 1.3203169880743488,
+    "accuracy": 0.3358333333333333,
+    "mean_max_probability": 0.5117824302570612,
+    "expected_calibration_error_10_bin": 0.17594909692372784,
+    "predicted_counts": {
+      "winner_model_a": 594,
+      "winner_model_b": 334,
+      "winner_tie": 272
+    }
+  },
+  "swapped_aligned": {
+    "multiclass_log_loss": 1.321815469722881,
+    "accuracy": 0.3441666666666667,
+    "mean_max_probability": 0.5155016084770359,
+    "expected_calibration_error_10_bin": 0.17133494181036907,
+    "predicted_counts": {
+      "winner_model_a": 328,
+      "winner_model_b": 590,
+      "winner_tie": 282
+    }
+  },
+  "arithmetic_swap_ensemble": {
+    "multiclass_log_loss": 1.1900459407632262,
+    "accuracy": 0.34833333333333333,
+    "mean_max_probability": 0.440318811124516,
+    "expected_calibration_error_10_bin": 0.0919854777911827,
+    "predicted_counts": {
+      "winner_model_a": 435,
+      "winner_model_b": 444,
+      "winner_tie": 321
+    }
+  },
+  "geometric_swap_ensemble": {
+    "multiclass_log_loss": 1.2254517249483676,
+    "accuracy": 0.3491666666666667,
+    "mean_max_probability": 0.45139000190556333,
+    "expected_calibration_error_10_bin": 0.10222333523889668,
+    "predicted_counts": {
+      "winner_model_a": 430,
+      "winner_model_b": 417,
+      "winner_tie": 353
+    }
+  },
+  "original_vs_swapped": {
+    "mean_absolute_probability_disagreement": 0.16282119434019984,
+    "fraction_rows_with_any_class_difference_above_0p2": 0.4741666666666667,
+    "fraction_rows_with_changed_predicted_winner": 0.7225
+  },
+  "deltas_vs_original": {
+    "arithmetic_log_loss": -0.1302710473111226,
+    "geometric_log_loss": -0.0948652631259812
+  },
+  "limits": [
+    "The 1,200-row validation set has already been used for context-length selection; ensemble selection here is exploratory and not independent confirmation.",
+    "Averaging original and swapped predictions enforces order symmetry by construction but cannot prove the human labels themselves are order-invariant.",
+    "The saved adapter was trained on only 2,000 original pairs for one epoch.",
+    "Any competition submission based on this ensemble should be labeled experimental."
+  ],
+  "lowest_observed_log_loss_method": "arithmetic_swap_ensemble",
+  "lowest_observed_log_loss": 1.1900459407632262,
+  "workflow_run": 36080336884,
+  "kaggle_kernel": "packkwanlow/qwen-1024-swap-ensemble-audit",
+  "date_taipei": "2026-09-25"
+}

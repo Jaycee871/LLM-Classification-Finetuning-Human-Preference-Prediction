@@ -21,4 +21,5 @@ jobs:
       - run: python scripts/sync_saved_adapter_notebook.py --check
       - run: python scripts/sync_context_ablation_notebook.py --check
       - run: python scripts/sync_qwen_swap_ensemble_notebook.py --check
+      - run: python scripts/sync_qwen_swap_submit_notebook.py --check
       - run: python -m pytest -q
